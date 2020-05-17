@@ -17,19 +17,32 @@ TYPE Rider* =
 
 VAR stamp: INTEGER;
 
+PROCEDURE Open(name, mode: ARRAY OF CHAR): File;
+  VAR f: File; g: Files.File;
+BEGIN
+  g := Files.Open(name, mode);
+  IF g = NIL THEN
+    RETURN NIL
+  ELSE
+    NEW(f);
+    f.native := g; f.current := 0;
+    RETURN f
+  END
+END Open;
+
 PROCEDURE New*(name: ARRAY OF CHAR): File;
 BEGIN
-  RETURN NIL
+  RETURN Open(name, "w+")
 END New;
 
 PROCEDURE Old*(name: ARRAY OF CHAR): File;
 BEGIN
-  RETURN NIL
+  RETURN Open(name, "r")
 END Old;
 
 PROCEDURE Set*(VAR r: Rider; f: File; off: INTEGER);
 BEGIN
-  ASSERT(off = 0);
+  Files.Seek(f.native, off, Files.SeekSet);
   r.base := f;
   r.eof := Files.Eof(f.native);
 
