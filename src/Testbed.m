@@ -2756,7 +2756,8 @@ INC
 
 			b.clefPMX( attributes[part].clefsign[staff], SHORT( attributes[part].clefline[staff] ), clef, clefspec[i] );  
 			lastclef[i] := clef;  Files.Write( W, clef );  Out.Char( attributes[part].clefsign[staff] );  
-			Out.Int( attributes[part].clefline[staff], 5 );  Out.Char( clef );  Out.Char( "|" );  Out.Char( clefspec[i] );  
+			Out.Int( attributes[part].clefline[staff], 5 );  Out.Char( clef );  Out.Char( "|" );
+                        IF clefspec[i] # 0X THEN Out.Char( clefspec[i] ) END;  
 
 			DEC( i );  
 		END;  

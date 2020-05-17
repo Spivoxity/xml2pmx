@@ -7,3 +7,5 @@ src/Testbed.k
 src/b.k
 src/xml2pmx
 import
+src/Telemann.pmx
+src/Telemann.pmxprep
