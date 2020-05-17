@@ -1,7 +1,9 @@
 MODULE b;
-(* Achtung "PrintRange" eingebaut, zuaetzliche Importe *)
+
+IMPORT Files := MyFiles, Strings := Strings0, Fifo,  Out; 
+
+TYPE LONGINT = INTEGER;
 	
-IMPORT Files, Strings := Strings0, Fifo,  Out := LCout; 
 CONST CR= 0DX; NL = 0AX; BLANK = 20X; DBLQUOTE = 22X; TAB=09X;
 TYPE
 	Tag* = POINTER TO TagDesc;   (* List structure for data acquisition *)
@@ -42,15 +44,6 @@ tieq: ARRAY 27 OF ARRAY 2 OF Fifo.FIFO;
     akeys*, mkeys* : ARRAY 27 OF INTEGER;
   nstr : ARRAY 8 OF LONGINT;   (* global for number of verses in a liedtext.*)
 	text: ARRAY 8 OF ARRAY 6  OF ARRAY 1024 OF CHAR;   (* texts for at most 6 verses and 8 voices choir; length limited to  1023 Chars *)
-			PROCEDURE PrintRange*;
-	VAR S : Texts.Scanner; von, bis, i : LONGINT; n : Tag;
-	BEGIN
-	Texts.OpenScanner (S, Oberon.Par.text, Oberon.Par.pos);
-	Texts.Scan(S); von := S.i; Texts.Scan(S); bis  := S.i;
-		n:= q.first; 
-		WHILE (n.next # NIL) & (i < von ) DO n := n.next; INC(i); END;
-	WHILE (n.next # NIL) & ( i < bis ) DO OutTag(n,TRUE); n := n.next; INC(i); END;
-END PrintRange;
 
 PROCEDURE slur2PMX* ( n: Tag;  VAR pmxslur: ARRAY OF CHAR ; outputset : SET);  
 	(* Translates a beginning or ending slur from XML to PMX. *)
@@ -414,7 +407,7 @@ Out.Int(itags,5); Out.String(tag); Out.Int(part,5); Out.Int(measure,5); Out.Int(
 		END;  
 	END FindAtt;  
 	PROCEDURE FindNextNote* (VAR n : Tag); (*  for removing cue notes ; finds next note after "n" or "n" when it is a note *)
-	VAR
+
 	BEGIN
 	IF n.tagname # "<note>" THEN
 		REPEAT n:= n.next UNTIL ( (n.tagname = "<note>" ) OR ( n.next = NIL) ) ;
@@ -861,19 +854,6 @@ PROCEDURE FilterTeX*( in: ARRAY OF CHAR;  VAR out: ARRAY OF CHAR );
 	ws := (c = BLANK) OR ( c = TAB ) OR ( c = CR ) OR ( c = NL );
 	RETURN ws;
 	END WhiteSpace;
-	PROCEDURE testws*;
-	VAR f : Files.File; R : Files.Rider; c : CHAR; rec : ARRAY 256 OF CHAR; i : LONGINT;
-	BEGIN
-	f := Files.Old ("d:/musix/xml/vivaldi.xml");
-	Files.Set(R,f,0);
-	WHILE ~R.eof DO
-	Files.Read (R,c);
-	IF c # "<" THEN REPEAT Files.Read(R,c) UNTIL R.eof OR (c = "<" ); END;
-	i := 0; rec[i] := c; REPEAT Files.Read(R,c); INC(i); rec[i] := c; UNTIL R.eof OR (c = ">" ); 
-	rec[i+1] := 0X;
-	Out.Ln();Out.String(rec);
-	END;
-	END testws;
 	PROCEDURE ReadRecn1*( VAR R: Files.Rider;  VAR rec: ARRAY OF CHAR;  VAR length: LONGINT );  
 	(* Reads one record from the MusicXML file. removes leading BLANKs and TABs and CR, NL *)
 	VAR i: LONGINT;  c: CHAR;  
@@ -955,7 +935,7 @@ PROCEDURE FilterTeX*( in: ARRAY OF CHAR;  VAR out: ARRAY OF CHAR );
 	END FindName;  
 
 	PROCEDURE FindValue*( s: ARRAY OF CHAR;  VAR pos: LONGINT;  VAR value: ARRAY OF CHAR;  VAR eor: BOOLEAN );  
-	VAR 
+
 	BEGIN 
 		FindChar( s, pos, 22X, eor );   (* Out.Ln(); Out.String("FindValue: pos : "); Out.Int(pos,5); *) INC( pos );  
 		IF ~eor THEN ReadUntil( s, pos, 22X, value, eor );  END;  

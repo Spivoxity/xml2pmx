@@ -1,8 +1,9 @@
 MODULE Strings0;	(** portable *) (* ejz, *)
 
+TYPE LONGINT = INTEGER;
+
 (** Strings is a utility module that provides procedures to manipulate strings.
 		Note: All strings MUST be 0X terminated. *)
-	IMPORT Reals;
 	CONST
 		CR* = 0DX; (** the Oberon end of line character *)
 		Tab* = 09X; (** the horizontal tab character *)
@@ -431,60 +432,6 @@ MODULE Strings0;	(** portable *) (* ejz, *)
 		END;
 		str[j] := 0X
 	END IntToStr;
-PROCEDURE RealToStr*(x: LONGREAL; VAR s: ARRAY OF CHAR);
-VAR e, h, l, n, len: LONGINT; i, j, pos: INTEGER; z: LONGREAL; d: ARRAY 16 OF CHAR;
-	
-	PROCEDURE Wr(ch: CHAR);
-	BEGIN
-		IF ch = 0X THEN HALT(42) END;
-		IF pos < len THEN s[pos] := ch; INC(pos) END;
-	END Wr;
-	
-BEGIN
-	len := LEN(s)-1; pos := 0;
-	e:= Reals.ExpoL(x);
-	IF e = 2047 THEN
-		Wr("N"); Wr("a"); Wr("N")
-	ELSE
-		n := 14;
-		IF (x < 0) & (e # 0) THEN Wr("-"); x:= - x END;
-		IF e = 0 THEN h:= 0; l:= 0 (* no denormals *)
-    ELSE e:= (e - 1023) * 301029 DIV 1000000; (* ln(2)/ln(10) = 0.301029996 *)
-      z:= Reals.Ten(e+1);
-      IF x >= z THEN x:= x/z; INC(e) ELSE x:= x * Reals.Ten(-e) END;
-      IF x >= 10 THEN x:= x * Reals.Ten(-1) + 0.5D0 / Reals.Ten(n); INC(e)
-      ELSE x:= x + 0.5D0 / Reals.Ten(n);
-        IF x >= 10 THEN x:= x * Reals.Ten(-1); INC(e) END
-      END;
-      x:= x * Reals.Ten(7); h:= ENTIER(x); x:= (x-h) * Reals.Ten(8); l:= ENTIER(x)
-    END;
-		i := 15; WHILE i > 7 DO d[i]:= CHR(l MOD 10 + ORD("0")); l:= l DIV 10; DEC(i) END;
-		WHILE i >= 0 DO d[i]:= CHR(h MOD 10 + ORD("0")); h:= h DIV 10; DEC(i) END;
-		IF ABS(e) > 8 THEN (* scientific notation *)
-			j := 15; WHILE (j > 0) & (d[j] = "0") DO DEC(j) END;
-			Wr(d[0]); IF j # 0 THEN Wr(".") END; i := 1; WHILE i <= j DO Wr(d[i]); INC(i) END;
-			IF e < 0 THEN Wr("D"); Wr("-"); e:= - e ELSE Wr("D"); Wr("+") END;
-			Wr(CHR(e DIV 100 + ORD("0"))); e:= e MOD 100;
-			Wr(CHR(e DIV 10 + ORD("0"))); Wr(CHR(e MOD 10 + ORD("0")))
-		ELSE
-			IF e < 0 THEN (* leading zeros *)
-				j := (* !15*) 14; WHILE (j > 0) & (d[j] = "0") DO DEC(j) END;
-				Wr("0"); Wr("."); INC(e);
-				WHILE e < 0 DO Wr("0"); INC(e) END;
-				i := 0; WHILE i <= j DO Wr(d[i]); INC(i) END
-			ELSE
-				i := 0; WHILE (e >= 0) & (i < 16 ) DO Wr(d[i]); INC(i); DEC(e) END;
-				IF i < 16 THEN
-					Wr(".");
-					WHILE i < (*16*) 15 DO Wr(d[i]); INC(i); END;
-					WHILE s[pos - 1] = "0" DO DEC(pos) END;
-					IF s[pos - 1] = "." THEN DEC(pos) END;
-				END
-			END
-		END
-	END;
-	s[pos] := 0X
-END RealToStr;
 
 (** Convert a string into a boolean. "Yes", "True" and "On" are TRUE all other strings are FALSE.
 	Leading white space characters are ignored. *)

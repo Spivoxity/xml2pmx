@@ -45,8 +45,9 @@ Recently solved 19. 05. 2017
 
 (*   IMPORT  Strings, Files, Texts, Oberon, b, Complete, Fifo, Out;  (*   Import for Oberon Version *) *)
   (* IMPORT Kernel32, Strings, Files, Out := WCout, b, Complete, Fifo ; *)  (* Import for Windows-Exe Version *)
- 	 IMPORT Kernel, Files, Strings:=Strings0, Out := LCout, b, Complete, Fifo;   (* Import for Linux-Version *)
+ 	 IMPORT Args, Files := MyFiles, Strings:=Strings0, Out, b, Complete, Fifo;   (* Import for Linux-Version *)
 
+TYPE LONGINT = INTEGER;
 
 CONST 
 	NL = 0AX;  BLANK = 20X;  TAB = 09X;    CR = 0DX;  measurelimit = 400;  
@@ -223,17 +224,6 @@ VAR
 	slur: ARRAY 27 OF Fifo.FIFO; *)
 	beamopen : ARRAY 30 OF ARRAY 3 OF BOOLEAN;
 (*	cl: Kernel32.LPSTR; *) (*  Command line for Windows.Exe  *) 
-		PROCEDURE PrintRange*;
-	VAR S : Texts.Scanner; von, bis, i : LONGINT; n : b.Tag;
-	BEGIN
-	Texts.OpenScanner (S, Oberon.Par.text, Oberon.Par.pos);
-	Texts.Scan(S); von := S.i; Texts.Scan(S); bis  := S.i;
-		n:= b.q.first; 
-		WHILE (n.next # NIL) & (i < von ) DO n := n.next; INC(i); END;
-	WHILE (n.next # NIL) & ( i < bis ) DO b.OutTag(n,TRUE); n := n.next; INC(i); END;
-END PrintRange;
-
-	
 	
 	PROCEDURE pmxtype( xmltype: INTEGER ): INTEGER;  
 	VAR i: INTEGER;  
@@ -318,7 +308,6 @@ END PrintRange;
 	END FillRests;  
 
 	PROCEDURE PMXdyn( XMLdyn: ARRAY OF CHAR;  VAR out: ARRAY OF CHAR );  
-	VAR 
 	(* converts e.g. <f /> to " Df "*)
 	BEGIN 
 		IF XMLdyn = "<f />" THEN COPY( " Df ", out );  END;  
@@ -360,7 +349,6 @@ END PrintRange;
 	END WriteLInt;  
 
 	PROCEDURE WriteString( VAR W: Files.Rider;  s: ARRAY OF CHAR );  
-	VAR 
 	BEGIN 
 		Files.WriteBytes( W, s, Strings.Length( s ) );  
 	END WriteString;  
@@ -462,29 +450,26 @@ Out.Ln();	Out.String("Storage for verses : "); Out.String(sout);
 	PROCEDURE commandU; 
 	 VAR output : ARRAY 16 OF CHAR; kno : LONGINT;
 	BEGIN
-		IF Kernel.Static THEN
-		kno := Kernel.NoOfArgs;
+		kno := Args.argc;
 		IF ( kno >= 3 ) THEN
-			Kernel.GetArg(1, in); Out.Ln();Out.String(in);
-			Kernel.GetArg(2, out); Out.Ln(); Out.String(out);
+			Args.GetArg(1, in); Out.Ln();Out.String(in);
+			Args.GetArg(2, out); Out.Ln(); Out.String(out);
 			COPY(out,sout);
 			Strings.ChangeSuffix(sout,"txt"); 
 			Out.Ln(); Out.String("sout"); Out.String(sout);
-			IF ( kno >= 4 ) THEN Kernel.GetArg(3,output); END; 
+			IF ( kno >= 4 ) THEN Args.GetArg(3,output); END; 
 			Strings.Upper(output,outputcont);
 			Out.Ln(); Out.String(outputcont);
 			SetOutput;       b.voutput := (2 IN outputset);
-				IF ( kno = 5 ) THEN Kernel.GetArg(4,output); Strings.StrToInt(output,uptomeasure);
+				IF ( kno = 5 ) THEN Args.GetArg(4,output); Strings.StrToInt(output,uptomeasure);
 				Out.Ln(); Out.String(" number of bars to be processsed : "); Out.Int(uptomeasure,5);
 Out.Ln(); END; 
 		Out.String( "Linux Binary XML2PMX Copyright 2016/2017 Dieter Gloetzel" );  Out.Ln();	
 			InOut(in, out);
 		ELSE
-			Kernel.GetArg(0, in);
+			Args.GetArg(0, in);
 			Out.String(in); Out.String(" error: argument number < 2 "); Out.Ln;
-		END;
-		Kernel.Shutdown(0);
-	END;
+		END
 	END commandU; 
 	
 	
@@ -2692,7 +2677,7 @@ INC
 	(* Writes PMX header information to intermediate Files.File "fprep" with Files.Rider "rprep" *)
 	VAR i: LONGINT;  xmtrnum0: LONGREAL;  clef: CHAR;  
 		perclef, perline: ARRAY 32 OF CHAR;  
-		zeit, tag, xmtrnum0s: ARRAY 16 OF CHAR;  
+		zeit, tag: ARRAY 16 OF CHAR;  
 	BEGIN 
 		
 		
@@ -2775,8 +2760,8 @@ INC
 		
 		ELSE xmtrnum0 := 0.;  
 		END;  
-		Strings.RealToStr( xmtrnum0, xmtrnum0s );  Files.Write( W, BLANK );  
-		WriteString( W, xmtrnum0s );   (*xmtrnum0 *) Out.Ln();  Out.String( "pickup-real : " );  Out.String( xmtrnum0s );  
+		Files.Write( W, BLANK );  Files.WriteLongReal(W, xmtrnum0);
+		Files.WriteLongReal( W, xmtrnum0 );   (*xmtrnum0 *) Out.Ln();  Out.String( "pickup-real : " );  Out.LongReal( xmtrnum0 );  
 		WriteLInt( W, attributes[maxpart].fifth );   (* isig *) (* this is the concert key *)
 		Files.Write( W, CR );  Files.Write( W, NL );  Files.Write( W, "%" );  Files.Write( W, CR );  Files.Write( W, NL );  
 
@@ -3057,6 +3042,6 @@ BEGIN
 	(*****************************************************)
 	 (*  commandX;    *)   (* activate for Windows-Exe Version *******)
 	(**************** ******************************)
-	 CommandU;     (* activate for Linux-Binary Version *************)
+	 commandU;     (* activate for Linux-Binary Version *************)
 	
 END Testbed.

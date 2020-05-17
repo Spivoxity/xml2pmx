@@ -1,6 +1,8 @@
 MODULE Fifo;
-IMPORT Out := WCout; 
-VAR
+IMPORT Out; 
+
+TYPE LONGINT = INTEGER;
+
 TYPE
   Node* = POINTER TO NodeDesc;
   NodeDesc = RECORD

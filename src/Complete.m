@@ -1,5 +1,8 @@
 MODULE Complete;
-IMPORT Strings := Strings0,  Out := LCout; 
+IMPORT Strings := Strings0,  Out;
+
+TYPE LONGINT = INTEGER;
+
 VAR pmxdur : ARRAY 10 OF ARRAY 4 OF CHAR; durvec : ARRAY 10 OF INTEGER; ixmax : LONGINT; 
 notetypexml: ARRAY 10 OF ARRAY 8 OF CHAR; notetypepmx: ARRAY 10 OF CHAR;  
 notetypei : ARRAY 10 OF INTEGER; (* inverse of notetype index 0 => 64 *)
