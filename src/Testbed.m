@@ -2647,7 +2647,7 @@ INC
 	(* Writes PMX header information to intermediate Files.File "fprep" with Files.Rider "rprep" *)
 	VAR i: LONGINT;  xmtrnum0: LONGREAL;  clef: CHAR;  
 		perclef, perline: ARRAY 32 OF CHAR;  
-		zeit, tag: ARRAY 16 OF CHAR;  
+		zeit, tag, xmtrnum0s: ARRAY 16 OF CHAR;  
 	BEGIN 
 		
 		
@@ -2730,8 +2730,8 @@ INC
 		
 		ELSE xmtrnum0 := 0.;  
 		END;  
-		Files.Write( W, BLANK );  Files.WriteLongReal(W, xmtrnum0);
-		Out.Ln();  Out.String( "pickup-real : " );  Out.LongReal( xmtrnum0 );  
+		Strings.RealToStr( xmtrnum0, xmtrnum0s );  Files.Write( W, BLANK );  
+		WriteString( W, xmtrnum0s );   (*xmtrnum0 *) Out.Ln();  Out.String( "pickup-real : " );  Out.String( xmtrnum0s );  
 		WriteLInt( W, attributes[maxpart].fifth );   (* isig *) (* this is the concert key *)
 		Files.Write( W, CR );  Files.Write( W, NL );  Files.Write( W, "%" );  Files.Write( W, CR );  Files.Write( W, NL );  
 

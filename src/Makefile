@@ -1,12 +1,15 @@
-OBJS = MyFiles.k Strings0.k Fifo.k b.k Complete.k Testbed.k
-
 all: xml2pmx
+
+OBJS = MyFiles.k Strings0.k Fifo.k b.k Complete.k Testbed.k
 
 xml2pmx: $(OBJS)
 	obc $^ -o $@ 
 
 %.k: %.m
 	obc -c $< -o $@
+
+rtest: Strings0.k RTest.k
+	obc $^ -o $@
 
 test: force
 	./xml2pmx Telemann.xml Telemann.pmx a 0

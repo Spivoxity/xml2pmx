@@ -47,12 +47,6 @@ TYPE LONGINT = INTEGER;
 		END
 	END AppendCh;
 
-(** TRUE if ch is a hexadecimal digit. *)
-	PROCEDURE IsHexDigit*(ch: CHAR): BOOLEAN;
-	BEGIN
-		RETURN ((ch >= "0") & (ch <= "9")) OR ((CAP(ch) >= "A") & (CAP(ch) <= "F"))
-	END IsHexDigit;
-
 (** TRUE if ch is a decimal digit. *)
 	PROCEDURE IsDigit*(ch: CHAR): BOOLEAN;
 	BEGIN
@@ -129,83 +123,6 @@ TYPE LONGINT = INTEGER;
 		END;
 		ustr[i] := 0X
 	END Upper;
-
-(** Is str prefixed by pre? *)
-	PROCEDURE Prefix*(pre: ARRAY OF CHAR; VAR str(** in *): ARRAY OF CHAR): BOOLEAN;
-		VAR i: LONGINT;
-	BEGIN
-		i := 0;
-		WHILE (pre[i] # 0X) & (pre[i] = str[i]) DO
-			INC(i)
-		END;
-		RETURN pre[i] = 0X
-	END Prefix;
-
-(** Checks if str is prefixed by pre. The case is ignored. *)
-	PROCEDURE CAPPrefix*(pre: ARRAY OF CHAR; VAR str(** in *): ARRAY OF CHAR): BOOLEAN;
-		VAR i: LONGINT;
-	BEGIN
-		i := 0;
-		WHILE (pre[i] # 0X) & (CAP(pre[i]) = CAP(str[i])) DO
-			INC(i)
-		END;
-		RETURN pre[i] = 0X
-	END CAPPrefix;
-
-(** Compare str1 to str2. The case is ignored. *)
-	PROCEDURE CAPCompare*(VAR str1(** in *), str2(** in *): ARRAY OF CHAR): BOOLEAN;
-		VAR i: LONGINT;
-	BEGIN
-		i := 0;
-		WHILE (str1[i] # 0X) & (str2[i] # 0X) & (CAP(str1[i]) = CAP(str2[i])) DO
-			INC(i)
-		END;
-		RETURN str1[i] = str2[i]
-	END CAPCompare;
-
-(** Get the parameter-value on line. The parameter value is started behind the first colon character. *)
-	PROCEDURE GetPar*(VAR line(** in *), par(** out *): ARRAY OF CHAR);
-		VAR i, j, l: LONGINT;
-	BEGIN
-		i := 0;
-		WHILE (line[i] # 0X) & (line[i] # ":") DO
-			INC(i)
-		END;
-		IF line[i] = ":" THEN
-			INC(i)
-		END;
-		WHILE (line[i] # 0X) & (line[i] <= " ") DO
-			INC(i)
-		END;
-		l := LEN(par)-1; j := 0;
-		WHILE (j < l) & (line[i] # 0X) DO
-			par[j] := line[i]; INC(j); INC(i)
-		END;
-		par[j] := 0X
-	END GetPar;
-
-(** Get the suffix of str. The suffix is started by the last dot in str. *)
-	PROCEDURE GetSuffix*(VAR str(** in *), suf(** out *): ARRAY OF CHAR);
-		VAR i, j, l, dot: LONGINT;
-	BEGIN
-		dot := -1; i := 0;
-		WHILE str[i] # 0X DO
-			IF str[i] = "." THEN
-				dot := i
-			ELSIF str[i] = "/" THEN
-				dot := -1
-			END;
-			INC(i)
-		END;
-		j := 0;
-		IF dot > 0 THEN
-			l := LEN(suf)-1; i := dot+1;
-			WHILE (j < l) & (str[i] # 0X) DO
-				suf[j] := str[i]; INC(j); INC(i)
-			END
-		END;
-		suf[j] := 0X
-	END GetSuffix;
 
 (** Change the suffix of str to suf. *)
 	PROCEDURE ChangeSuffix*(VAR str(** in/out *): ARRAY OF CHAR; suf: ARRAY OF CHAR);
@@ -290,67 +207,6 @@ TYPE LONGINT = INTEGER;
 		Find(pos)
 	END Search;
 
-(** Search in src starting at pos for the next occurrence of pat. *)
-	PROCEDURE CAPSearch*(pat: ARRAY OF CHAR; VAR src(** in *): ARRAY OF CHAR; VAR pos(** in/out *): LONGINT);
-		CONST MaxPat = 128;
-		VAR
-			buf: ARRAY MaxPat OF CHAR;
-			len, i, srclen: LONGINT;
-		PROCEDURE Find(beg: LONGINT);
-			VAR
-				i, j, b, e: LONGINT;
-				ch: CHAR;
-				ref: ARRAY MaxPat OF CHAR;
-		BEGIN
-			ch := UpperCh(src[pos]); INC(pos);
-			ref[0] := ch;
-			i := 0; j := 0; b := 0; e := 1;
-			WHILE (pos <= srclen) & (i < len) DO
-				IF buf[i] = ch THEN
-					INC(i); j := (j + 1) MOD MaxPat
-				ELSE
-					i := 0; b := (b + 1) MOD MaxPat; j := b
-				END;
-				IF j # e THEN
-					ch := ref[j]
-				ELSE
-					IF pos >= srclen THEN
-						ch := 0X
-					ELSE
-						ch := UpperCh(src[pos])
-					END;
-					INC(pos); ref[j] := ch; e := (e + 1) MOD MaxPat; INC(beg);
-				END
-			END;
-			IF i = len THEN
-				pos := beg-len
-			ELSE
-				pos := -1
-			END
-		END Find;
-	BEGIN
-		len := Length(pat);
-		IF MaxPat < len THEN
-			len := MaxPat
-		END;
-		IF len <= 0 THEN
-			pos := -1;
-			RETURN
-		END;
-		i := 0;
-		REPEAT
-			buf[i] := UpperCh(pat[i]); INC(i)
-		UNTIL i >= len;
-		srclen := Length(src);
-		IF pos < 0 THEN
-			pos := 0
-		ELSIF pos >= srclen THEN
-			pos := -1;
-			RETURN
-		END;
-		Find(pos)
-	END CAPSearch;
-
 (** Convert a string into an integer. Leading white space characters are ignored. *)
 	PROCEDURE StrToInt*(VAR str: ARRAY OF CHAR; VAR val: LONGINT);
 		VAR i, d: LONGINT; ch: CHAR; neg: BOOLEAN;
@@ -379,28 +235,6 @@ TYPE LONGINT = INTEGER;
 		IF neg THEN val := -val END
 	END StrToInt;
 
-(** Convert the substring beginning at position i in str into an integer. Any leading whitespace characters are ignored.
-	After the conversion i pointes to the first character after the integer. *)
-	PROCEDURE StrToIntPos*(VAR str: ARRAY OF CHAR; VAR val: LONGINT; VAR i: INTEGER);
-		VAR noStr: ARRAY 16 OF CHAR;
-	BEGIN
-		WHILE (str[i] # 0X) & (str[i] <= " ") DO
-			INC(i)
-		END;
-		val := 0;
-		IF str[i] = "-" THEN
-			noStr[val] := str[i]; INC(val); INC(i);
-			WHILE (str[i] # 0X) & (str[i] <= " ") DO
-				INC(i)
-			END
-		END;
-		WHILE (str[i] >= "0") & (str[i] <= "9") DO
-			noStr[val] := str[i]; INC(val); INC(i)
-		END;
-		noStr[val] := 0X;
-		StrToInt(noStr, val)
-	END StrToIntPos;
-
 (** Convert an integer into a string. *)
 	PROCEDURE IntToStr*(val: LONGINT; VAR str: ARRAY OF CHAR);
 		VAR
@@ -427,76 +261,39 @@ TYPE LONGINT = INTEGER;
 		str[j] := 0X
 	END IntToStr;
 
-(** Convert a string into a boolean. "Yes", "True" and "On" are TRUE all other strings are FALSE.
-	Leading white space characters are ignored. *)
-	PROCEDURE StrToBool*(VAR str: ARRAY OF CHAR; VAR b: BOOLEAN);
-		VAR i: LONGINT;
-	BEGIN
-		i := 0;
-		WHILE (str[i] # 0X) & (str[i] <= " ") DO
-			INC(i)
-		END;
-		CASE CAP(str[i]) OF
-			"Y", "T": b := TRUE
-			|"O": b := CAP(str[i+1]) = "N"
-		ELSE
-			b := FALSE
-		END
-	END StrToBool;
+        PROCEDURE RealToStr*(x: LONGREAL; VAR s: ARRAY OF CHAR);
+          VAR n, m, k, pos: INTEGER; tmp: ARRAY 16 OF CHAR;
 
-(** Convert a boolean into "Yes" or "No". *)
-	PROCEDURE BoolToStr*(b: BOOLEAN; VAR str: ARRAY OF CHAR);
-	BEGIN
-		IF b THEN
-			COPY("Yes", str)
-		ELSE
-			COPY("No", str)
-		END
-	END BoolToStr;
+          PROCEDURE W(ch: CHAR);
+          BEGIN
+            IF pos < LEN(s)-1 THEN
+              s[pos] := ch; pos := pos+1
+            END
+          END W;
 
-(** Convert a string to a set *)
-	PROCEDURE StrToSet* (str: ARRAY OF CHAR; VAR set: SET);
-	VAR i, d, d1: INTEGER; ch: CHAR; dot: BOOLEAN;
-	BEGIN
-		set := {}; dot := FALSE;
-		i := 0; ch := str[i];
-		WHILE (ch # 0X) & (ch # "}") DO
-			WHILE (ch # 0X) & ((ch < "0") OR (ch > "9")) DO INC(i); ch := str[i] END;
-			d := 0; WHILE (ch >= "0") & (ch <= "9") DO d := d*10 + ORD(ch) - 30H; INC(i); ch := str[i] END;
-			IF d <= MAX(SET) THEN INCL(set, d) END;
-			IF dot THEN
-				d1 := 0;
-				WHILE (d1 <= MAX(SET)) & (d1 < d) DO INCL(set, d1); INC(d1) END;
-				dot := FALSE
-			END;
-			WHILE ch = " " DO INC(i); ch := str[i] END;
-			IF ch = "." THEN d1 := d + 1; dot := TRUE END
-		END
-	END StrToSet;
+        BEGIN
+          pos := 0;
+          IF x < 0 THEN W('-'); x := -x END;
+          ASSERT (x < 1.0E9);
 
-(** Convert a set to a string *)
-	PROCEDURE SetToStr* (set: SET; VAR str: ARRAY OF CHAR);
-	VAR i, j, k: INTEGER; noFirst: BOOLEAN;
-	BEGIN
-		str[0] := "{"; i := 0; k := 1; noFirst := FALSE;
-		WHILE i <= MAX(SET) DO
-			IF i IN set THEN
-				IF noFirst THEN str[k] := ","; INC(k) ELSE noFirst := TRUE END;
-				IF i >= 10 THEN str[k] := CHR(i DIV 10 + 30H); INC(k) END;
-				str[k] := CHR(i MOD 10 + 30H); INC(k);
-				j := i; INC(i);
-				WHILE (i <= MAX(SET)) & (i IN set) DO INC(i) END;
-				IF i-2 > j THEN
-					str[k] := "."; str[k+1] := "."; INC(k, 2); j := i - 1;
-					IF j >= 10 THEN str[k] := CHR(j DIV 10 + 30H); INC(k) END;
-					str[k] := CHR(j MOD 10 + 30H); INC(k)
-				ELSE i := j
-				END
-			END;
-			INC(i)
-		END;
-		str[k] := "}"; str[k+1] := 0X
-	END SetToStr;
+          n := ENTIER(x);
+          m := ENTIER(1.0E6 * (x - n) + 0.5);
+          IF m = 1000000 THEN n := n+1; m := 0 END;
+
+          IntToStr(n, tmp);
+          FOR k := 0 TO Length(tmp)-1 DO W(tmp[k]) END;
+
+          IF m > 0 THEN
+            W('.');
+            k := 100000;
+            WHILE m > 0 DO
+              W(CHR(m DIV k + ORD('0')));
+              m := m MOD k; k := k DIV 10
+            END
+          END;
+
+          s[pos] := 0X
+        END RealToStr;          
 
 	PROCEDURE Init();
 		VAR i: LONGINT; 
