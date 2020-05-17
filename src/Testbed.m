@@ -455,7 +455,7 @@ Out.Ln();	Out.String("Storage for verses : "); Out.String(sout);
 				Out.Ln(); Out.String(" number of bars to be processsed : "); Out.Int(uptomeasure,5);
 Out.Ln(); END; 
 		Out.String( "Linux Binary XML2PMX Copyright 2016/2017 Dieter Gloetzel" );  Out.Ln();	
-			InOut(in, out);
+			InOut(in, out); Out.Ln
 		ELSE
 			Args.GetArg(0, in);
 			Out.String(in); Out.String(" error: argument number < 2 "); Out.Ln;
@@ -2731,7 +2731,7 @@ INC
 		ELSE xmtrnum0 := 0.;  
 		END;  
 		Files.Write( W, BLANK );  Files.WriteLongReal(W, xmtrnum0);
-		Files.WriteLongReal( W, xmtrnum0 );   (*xmtrnum0 *) Out.Ln();  Out.String( "pickup-real : " );  Out.LongReal( xmtrnum0 );  
+		Out.Ln();  Out.String( "pickup-real : " );  Out.LongReal( xmtrnum0 );  
 		WriteLInt( W, attributes[maxpart].fifth );   (* isig *) (* this is the concert key *)
 		Files.Write( W, CR );  Files.Write( W, NL );  Files.Write( W, "%" );  Files.Write( W, CR );  Files.Write( W, NL );  
 
