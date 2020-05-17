@@ -4,15 +4,9 @@ TYPE LONGINT = INTEGER;
 
 (** Strings is a utility module that provides procedures to manipulate strings.
 		Note: All strings MUST be 0X terminated. *)
-	CONST
-		CR* = 0DX; (** the Oberon end of line character *)
-		Tab* = 09X; (** the horizontal tab character *)
-		LF* = 0AX; (** the UNIX end of line character *) 
-
 	VAR
 		isAlpha*: ARRAY 256 OF BOOLEAN; (** all letters in the oberon charset *)
 		ISOToOberon*, OberonToISO*: ARRAY 256 OF CHAR; (** Translation tables for iso-8859-1 to oberon ascii code. *)
-		CRLF*: ARRAY 4 OF CHAR; (** end of line "string" used by MS-DOS and most TCP protocols *)
 
 (** Length of str. *)
 	PROCEDURE Length*(VAR str(** in *): ARRAY OF CHAR): LONGINT;
@@ -76,9 +70,9 @@ TYPE LONGINT = INTEGER;
 	BEGIN
 		CASE ch OF
 			"A" .. "Z": ch := CHR(ORD(ch)-ORD("A")+ORD("a"))
-			|"€": ch := "ƒ"
-			|"": ch := "„"
-			|"‚": ch := "…"
+			|80X: ch := 83X
+			|81X: ch := 84X
+			|82X: ch := 85X
 		ELSE
 		END;
 		RETURN ch
@@ -89,26 +83,26 @@ TYPE LONGINT = INTEGER;
 	BEGIN
 		CASE ch OF
 			"a" .. "z": ch := CAP(ch)
-			|"ƒ": ch := "€"
-			|"„": ch := ""
-			|"…": ch := "‚"
-			|"†": ch := "A"
-			|"‡": ch := "E"
-			|"ˆ": ch := "I"
-			|"‰": ch := "O"
-			|"Š": ch := "U"
-			|"‹": ch := "A"
-			|"Œ": ch := "E"
-			|"": ch := "I"
-			|"Ž": ch := "O"
-			|"": ch := "U"
-			|"": ch := "E"
-			|"‘": ch := "E"
-			|"’": ch := "I"
-			|"“": ch := "C"
-			|"”": ch := "A"
-			|"•": ch := "N"
-			|"–": ch := "S"
+			|83X: ch := 80X
+			|84X: ch := 81X
+			|85X: ch := 82X
+			|86X: ch := "A"
+			|87X: ch := "E"
+			|88X: ch := "I"
+			|89X: ch := "O"
+			|8AX: ch := "U"
+			|8BX: ch := "A"
+			|8CX: ch := "E"
+			|8DX: ch := "I"
+			|8EX: ch := "O"
+			|8FX: ch := "U"
+			|90X: ch := "E"
+			|91X: ch := "E"
+			|92X: ch := "I"
+			|93X: ch := "C"
+			|94X: ch := "A"
+			|95X: ch := "N"
+			|96X: ch := "S"
 		ELSE
 		END;
 		RETURN ch
@@ -511,103 +505,103 @@ TYPE LONGINT = INTEGER;
 		FOR i := 0 TO 255 DO
 			isAlpha[i] := ((i >= ORD("A")) & (i <= ORD("Z"))) OR ((i >= ORD("a")) & (i <= ORD("z")))
 		END;
-		isAlpha[ORD("€")] := TRUE; isAlpha[ORD("")] := TRUE; isAlpha[ORD("‚")] := TRUE;
-		isAlpha[ORD("ƒ")] := TRUE; isAlpha[ORD("„")] := TRUE; isAlpha[ORD("…")] := TRUE;
-		isAlpha[ORD("†")] := TRUE; isAlpha[ORD("‡")] := TRUE; isAlpha[ORD("ˆ")] := TRUE;
-		isAlpha[ORD("‰")] := TRUE; isAlpha[ORD("Š")] := TRUE; isAlpha[ORD("‹")] := TRUE;
-		isAlpha[ORD("Œ")] := TRUE; isAlpha[ORD("")] := TRUE; isAlpha[ORD("Ž")] := TRUE;
-		isAlpha[ORD("")] := TRUE; isAlpha[ORD("")] := TRUE; isAlpha[ORD("‘")] := TRUE;
-		isAlpha[ORD("’")] := TRUE; isAlpha[ORD("“")] := TRUE; isAlpha[ORD("”")] := TRUE;
-		isAlpha[ORD("•")] := TRUE; isAlpha[ORD("–")] := TRUE;
+		isAlpha[ORD(80X)] := TRUE; isAlpha[ORD(81X)] := TRUE; isAlpha[ORD(82X)] := TRUE;
+		isAlpha[ORD(83X)] := TRUE; isAlpha[ORD(84X)] := TRUE; isAlpha[ORD(85X)] := TRUE;
+		isAlpha[ORD(86X)] := TRUE; isAlpha[ORD(87X)] := TRUE; isAlpha[ORD(88X)] := TRUE;
+		isAlpha[ORD(89X)] := TRUE; isAlpha[ORD(8AX)] := TRUE; isAlpha[ORD(8BX)] := TRUE;
+		isAlpha[ORD(8CX)] := TRUE; isAlpha[ORD(8DX)] := TRUE; isAlpha[ORD(8EX)] := TRUE;
+		isAlpha[ORD(8FX)] := TRUE; isAlpha[ORD(90X)] := TRUE; isAlpha[ORD(91X)] := TRUE;
+		isAlpha[ORD(92X)] := TRUE; isAlpha[ORD(93X)] := TRUE; isAlpha[ORD(94X)] := TRUE;
+		isAlpha[ORD(95X)] := TRUE; isAlpha[ORD(96X)] := TRUE;
 		FOR i := 0 TO 255 DO
 			ISOToOberon[i] := CHR(i); OberonToISO[i] := CHR(i)
 		END;
-		ISOToOberon[8] := CHR(127);
-		ISOToOberon[146] := CHR(39);
-		ISOToOberon[160] := CHR(32);
-		ISOToOberon[162] := CHR(99);
-		ISOToOberon[166] := CHR(124);
-		ISOToOberon[168] := CHR(34);
-		ISOToOberon[169] := CHR(99);
-		ISOToOberon[170] := CHR(97);
-		ISOToOberon[171] := CHR(60);
-		ISOToOberon[173] := CHR(45);
-		ISOToOberon[174] := CHR(114);
-		ISOToOberon[175] := CHR(45);
-		ISOToOberon[176] := CHR(111);
-		ISOToOberon[178] := CHR(50);
-		ISOToOberon[179] := CHR(51);
-		ISOToOberon[180] := CHR(39);
-		ISOToOberon[183] := CHR(46);
-		ISOToOberon[185] := CHR(49);
-		ISOToOberon[186] := CHR(48);
-		ISOToOberon[187] := CHR(62);
-		ISOToOberon[192] := CHR(65);
-		ISOToOberon[193] := CHR(65);
-		ISOToOberon[194] := CHR(65);
-		ISOToOberon[195] := CHR(65);
-		ISOToOberon[196] := CHR(128); OberonToISO[128] := CHR(196);
-		ISOToOberon[197] := CHR(65);
-		ISOToOberon[198] := CHR(65);
-		ISOToOberon[199] := CHR(67);
-		ISOToOberon[200] := CHR(69);
-		ISOToOberon[201] := CHR(69);
-		ISOToOberon[202] := CHR(69);
-		ISOToOberon[203] := CHR(69);
-		ISOToOberon[204] := CHR(73);
-		ISOToOberon[205] := CHR(73);
-		ISOToOberon[206] := CHR(73);
-		ISOToOberon[207] := CHR(73);
-		ISOToOberon[208] := CHR(68);
-		ISOToOberon[209] := CHR(78);
-		ISOToOberon[210] := CHR(79);
-		ISOToOberon[211] := CHR(79);
-		ISOToOberon[212] := CHR(79);
-		ISOToOberon[213] := CHR(79);
-		ISOToOberon[214] := CHR(129); OberonToISO[129] := CHR(214);
-		ISOToOberon[215] := CHR(42);
-		ISOToOberon[216] := CHR(79);
-		ISOToOberon[217] := CHR(85);
-		ISOToOberon[218] := CHR(85);
-		ISOToOberon[219] := CHR(85);
-		ISOToOberon[220] := CHR(130); OberonToISO[130] := CHR(220);
-		ISOToOberon[221] := CHR(89);
-		ISOToOberon[222] := CHR(80);
-		ISOToOberon[223] := CHR(150); OberonToISO[150] := CHR(223);
-		ISOToOberon[224] := CHR(139); OberonToISO[139] := CHR(224);
-		ISOToOberon[225] := CHR(148); OberonToISO[148] := CHR(225);
-		ISOToOberon[226] := CHR(134); OberonToISO[134] := CHR(226);
-		ISOToOberon[227] := CHR(97);
-		ISOToOberon[228] := CHR(131); OberonToISO[131] := CHR(228);
-		ISOToOberon[229] := CHR(97);
-		ISOToOberon[230] := CHR(97);
-		ISOToOberon[231] := CHR(147); OberonToISO[147] := CHR(231);
-		ISOToOberon[232] := CHR(140); OberonToISO[140] := CHR(232);
-		ISOToOberon[233] := CHR(144); OberonToISO[144] := CHR(233);
-		ISOToOberon[234] := CHR(135); OberonToISO[135] := CHR(234);
-		ISOToOberon[235] := CHR(145); OberonToISO[145] := CHR(235);
-		ISOToOberon[236] := CHR(141); OberonToISO[141] := CHR(236);
-		ISOToOberon[237] := CHR(105);
-		ISOToOberon[238] := CHR(136); OberonToISO[136] := CHR(238);
-		ISOToOberon[239] := CHR(146); OberonToISO[146] := CHR(239);
-		ISOToOberon[240] := CHR(100);
-		ISOToOberon[241] := CHR(149); OberonToISO[149] := CHR(241);
-		ISOToOberon[242] := CHR(142); OberonToISO[142] := CHR(242);
-		ISOToOberon[243] := CHR(111);
-		ISOToOberon[244] := CHR(137); OberonToISO[137] := CHR(244);
-		ISOToOberon[245] := CHR(111);
-		ISOToOberon[246] := CHR(132); OberonToISO[132] := CHR(246);
-		ISOToOberon[248] := CHR(111);
-		ISOToOberon[249] := CHR(143); OberonToISO[143] := CHR(249);
-		ISOToOberon[250] := CHR(117);
-		ISOToOberon[251] := CHR(138); OberonToISO[138] := CHR(251);
-		ISOToOberon[252] := CHR(133); OberonToISO[133] := CHR(252);
-		ISOToOberon[253] := CHR(121);
-		ISOToOberon[254] := CHR(112);
-		ISOToOberon[255] := CHR(121);
-		CRLF[0] := CR; CRLF[1] := LF; CRLF[2] := 0X; CRLF[3] := 0X
+		ISOToOberon[8] := 7FX;
+		ISOToOberon[146] := 27X;
+		ISOToOberon[160] := 20X;
+		ISOToOberon[162] := 63X;
+		ISOToOberon[166] := 7CX;
+		ISOToOberon[168] := 22X;
+		ISOToOberon[169] := 63X;
+		ISOToOberon[170] := 61X;
+		ISOToOberon[171] := 3CX;
+		ISOToOberon[173] := 2DX;
+		ISOToOberon[174] := 72X;
+		ISOToOberon[175] := 2DX;
+		ISOToOberon[176] := 6FX;
+		ISOToOberon[178] := 32X;
+		ISOToOberon[179] := 33X;
+		ISOToOberon[180] := 27X;
+		ISOToOberon[183] := 2EX;
+		ISOToOberon[185] := 31X;
+		ISOToOberon[186] := 30X;
+		ISOToOberon[187] := 3EX;
+		ISOToOberon[192] := 41X;
+		ISOToOberon[193] := 41X;
+		ISOToOberon[194] := 41X;
+		ISOToOberon[195] := 41X;
+		ISOToOberon[196] := 80X; OberonToISO[128] := 0C4X;
+		ISOToOberon[197] := 41X;
+		ISOToOberon[198] := 41X;
+		ISOToOberon[199] := 43X;
+		ISOToOberon[200] := 45X;
+		ISOToOberon[201] := 45X;
+		ISOToOberon[202] := 45X;
+		ISOToOberon[203] := 45X;
+		ISOToOberon[204] := 49X;
+		ISOToOberon[205] := 49X;
+		ISOToOberon[206] := 49X;
+		ISOToOberon[207] := 49X;
+		ISOToOberon[208] := 44X;
+		ISOToOberon[209] := 4EX;
+		ISOToOberon[210] := 4FX;
+		ISOToOberon[211] := 4FX;
+		ISOToOberon[212] := 4FX;
+		ISOToOberon[213] := 4FX;
+		ISOToOberon[214] := 81X; OberonToISO[129] := 0D6X;
+		ISOToOberon[215] := 2AX;
+		ISOToOberon[216] := 4FX;
+		ISOToOberon[217] := 55X;
+		ISOToOberon[218] := 55X;
+		ISOToOberon[219] := 55X;
+		ISOToOberon[220] := 82X; OberonToISO[130] := 0DCX;
+		ISOToOberon[221] := 59X;
+		ISOToOberon[222] := 50X;
+		ISOToOberon[223] := 96X; OberonToISO[150] := 0DFX;
+		ISOToOberon[224] := 8BX; OberonToISO[139] := 0E0X;
+		ISOToOberon[225] := 94X; OberonToISO[148] := 0E1X;
+		ISOToOberon[226] := 86X; OberonToISO[134] := 0E2X;
+		ISOToOberon[227] := 61X;
+		ISOToOberon[228] := 83X; OberonToISO[131] := 0E4X;
+		ISOToOberon[229] := 61X;
+		ISOToOberon[230] := 61X;
+		ISOToOberon[231] := 93X; OberonToISO[147] := 0E7X;
+		ISOToOberon[232] := 8CX; OberonToISO[140] := 0E8X;
+		ISOToOberon[233] := 90X; OberonToISO[144] := 0E9X;
+		ISOToOberon[234] := 87X; OberonToISO[135] := 0EAX;
+		ISOToOberon[235] := 91X; OberonToISO[145] := 0EBX;
+		ISOToOberon[236] := 8DX; OberonToISO[141] := 0ECX;
+		ISOToOberon[237] := 69X;
+		ISOToOberon[238] := 88X; OberonToISO[136] := 0EEX;
+		ISOToOberon[239] := 92X; OberonToISO[146] := 0EFX;
+		ISOToOberon[240] := 64X;
+		ISOToOberon[241] := 95X; OberonToISO[149] := 0F1X;
+		ISOToOberon[242] := 8EX; OberonToISO[142] := 0F2X;
+		ISOToOberon[243] := 6FX;
+		ISOToOberon[244] := 89X; OberonToISO[137] := 0F4X;
+		ISOToOberon[245] := 6FX;
+		ISOToOberon[246] := 84X; OberonToISO[132] := 0F6X;
+		ISOToOberon[248] := 6FX;
+		ISOToOberon[249] := 8FX; OberonToISO[143] := 0F9X;
+		ISOToOberon[250] := 75X;
+		ISOToOberon[251] := 8AX; OberonToISO[138] := 0FBX;
+		ISOToOberon[252] := 85X; OberonToISO[133] := 0FCX;
+		ISOToOberon[253] := 79X;
+		ISOToOberon[254] := 70X;
+		ISOToOberon[255] := 79X;
 	END Init;
 
 BEGIN
 	Init()
 END Strings0.
+
