@@ -1,15 +1,14 @@
 MODULE b;
-(* Achtung "PrintRange" eingebaut, zuaetzliche Importe *)
 	
-IMPORT Files, Strings := Strings0, Fifo,  Out := LCout; 
+IMPORT Files, Strings := Strings0, Fifo, Out; 
 CONST CR= 0DX; NL = 0AX; BLANK = 20X; DBLQUOTE = 22X; TAB=09X;
 TYPE
 	Tag* = POINTER TO TagDesc;   (* List structure for data acquisition *)
 	TagDesc* = RECORD 
-				nr*: LONGINT;   (* counter of tags *)
+				nr*: INTEGER;   (* counter of tags *)
 				chord*: CHAR;  cue* : BOOLEAN;
 				arpeggio*: BOOLEAN;  
-				part*, staff*, voice*, voice12*, measure*, dirnum*, lastnote*, nextnote*, nextvoice*, attnum*, note*, novalues*: LONGINT;  
+				part*, staff*, voice*, voice12*, measure*, dirnum*, lastnote*, nextnote*, nextvoice*, attnum*, note*, novalues*: INTEGER;  
 				(* to be used as indices  of ARRAY "notes" *)
 				tagname*: ARRAY 32 OF CHAR;  
 				endtag*: ARRAY 32 OF CHAR;  
@@ -34,29 +33,20 @@ TYPE
 			END;  
 
 			
-VAR q* : FIFO; maxtag : LONGINT; nfirst : Node; voutput* : BOOLEAN; nostaves* : LONGINT; unix* : BOOLEAN;
+VAR q* : FIFO; voutput* : BOOLEAN; nostaves* : INTEGER; unix* : BOOLEAN;
 sout : ARRAY 64 OF CHAR; (* target file path and directory *)
 tieunusdnum*: ARRAY 27 OF ARRAY 3 OF SET;
 tieq: ARRAY 27 OF ARRAY 2 OF Fifo.FIFO; 
 
     akeys*, mkeys* : ARRAY 27 OF INTEGER;
-  nstr : ARRAY 8 OF LONGINT;   (* global for number of verses in a liedtext.*)
+  nstr : ARRAY 8 OF INTEGER;   (* global for number of verses in a liedtext.*)
 	text: ARRAY 8 OF ARRAY 6  OF ARRAY 1024 OF CHAR;   (* texts for at most 6 verses and 8 voices choir; length limited to  1023 Chars *)
-			PROCEDURE PrintRange*;
-	VAR S : Texts.Scanner; von, bis, i : LONGINT; n : Tag;
-	BEGIN
-	Texts.OpenScanner (S, Oberon.Par.text, Oberon.Par.pos);
-	Texts.Scan(S); von := S.i; Texts.Scan(S); bis  := S.i;
-		n:= q.first; 
-		WHILE (n.next # NIL) & (i < von ) DO n := n.next; INC(i); END;
-	WHILE (n.next # NIL) & ( i < bis ) DO OutTag(n,TRUE); n := n.next; INC(i); END;
-END PrintRange;
 
 PROCEDURE slur2PMX* ( n: Tag;  VAR pmxslur: ARRAY OF CHAR ; outputset : SET);  
 	(* Translates a beginning or ending slur from XML to PMX. *)
 	
 	VAR c, cs : CHAR;  
-		type, number, placement: ARRAY 32 OF CHAR;  inumber : LONGINT; res : ARRAY 4 OF CHAR;
+		type, number, placement: ARRAY 32 OF CHAR;  inumber : INTEGER; 
 	BEGIN 
 		loesch( pmxslur );  FindAtt( n, "type", type );  FindAtt( n, "number", number );  
 		IF ( number # "" ) THEN
@@ -65,11 +55,12 @@ PROCEDURE slur2PMX* ( n: Tag;  VAR pmxslur: ARRAY OF CHAR ; outputset : SET);
 				ELSE cs := "A"; 
 		END;
 		FindAtt( n, "placement", placement );  
-		IF (type # "continue") THEN (* gibt es das …berhapt? *)
+		IF (type # "continue") THEN (* gibt es das $B)C(Berhapt? *)
 
 			COPY( BLANK, pmxslur );  
 			IF (type = "start") THEN c := "(";  
 			ELSIF (type = "stop") THEN c := ")"
+                        ELSE c := "?"
 			END;  
 			Strings.AppendCh( pmxslur, c );  
 		Strings.AppendCh( pmxslur, cs );  
@@ -89,7 +80,7 @@ PROCEDURE slur2PMX* ( n: Tag;  VAR pmxslur: ARRAY OF CHAR ; outputset : SET);
 				(* Slur control  according to grace property *)
 			
 	END slur2PMX;  
-			PROCEDURE tied2PMX* ( n: Tag;  type: ARRAY OF CHAR;  VAR pmxtied: ARRAY OF CHAR;  ps, voice: LONGINT);  
+			PROCEDURE tied2PMX* ( n: Tag;  type: ARRAY OF CHAR;  VAR pmxtied: ARRAY OF CHAR;  ps, voice: INTEGER);  
 	(* Translates a beginning or ending tie from XML to PMX.
 	    orientation = "d" => note with stem down yields tie with orientation "u".
 	 orientation = "u" => note with stem up yields tie with orientation "l". *)
@@ -129,9 +120,9 @@ PROCEDURE slur2PMX* ( n: Tag;  VAR pmxslur: ARRAY OF CHAR ; outputset : SET);
 
 
 	
-PROCEDURE lyric*( ps: LONGINT;  VAR n: Tag );  
+PROCEDURE lyric*( ps: INTEGER;  VAR n: Tag );  
 	VAR endtag: ARRAY 32 OF CHAR;  
-		number, syllabic: ARRAY 10 OF CHAR;  istr : LONGINT;
+		number, syllabic: ARRAY 10 OF CHAR;  istr : INTEGER;
 	BEGIN 
 	IF (n.tagname = "<lyric>") (* & (number = "1") *) THEN 
 
@@ -149,12 +140,12 @@ PROCEDURE lyric*( ps: LONGINT;  VAR n: Tag );
 		END;  
 	END lyric;  
 		PROCEDURE writetext*;  
-	VAR i, j, istr, column: LONGINT;  breakline: BOOLEAN;  f: Files.File;  r: Files.Rider;  
+	VAR i, j, istr, column: INTEGER;  breakline: BOOLEAN;  r: Files.File;  
 		s: ARRAY 4 OF CHAR;  
 	BEGIN 
 	Strings.Append(sout,"songtext.txt");
 Out.Ln();	Out.String("Storage for verses : "); Out.String(sout);
-		i := 0;  f := Files.New( sout );  Files.Set( r, f, 0 );  
+		i := 0;  r := Files.Open( sout, "w" );
 		WHILE i < nostaves DO 
 		istr := 1;
 		WHILE istr <= nstr[i] DO (*$$$$$$$$$$$$$*)
@@ -162,10 +153,10 @@ Out.Ln();	Out.String("Storage for verses : "); Out.String(sout);
 				
 		(*		IF ~unix THEN Files.Write( r, CR );  	END;   *)
 				
-				Files.Write( r, NL );  Strings.IntToStr( i + 1, s ); 
-				 Files.WriteBytes( r, s, Strings.Length( s ) ); 
-				Strings.IntToStr(istr,s); Files.Write(r,"|"); 
-				Files.WriteBytes( r, s, Strings.Length( s ) ); 
+				Files.WriteChar( r, NL );  Strings.IntToStr( i + 1, s ); 
+				 Files.WriteString( r, s ); 
+				Strings.IntToStr(istr,s); Files.WriteChar(r,"|"); 
+				Files.WriteString( r, s ); 
 				 j := 0;  column := 0;  
 				WHILE j < Strings.Length( text[i,istr] ) DO 
 					
@@ -173,12 +164,12 @@ Out.Ln();	Out.String("Storage for verses : "); Out.String(sout);
 						IF (text[i,istr, j] # "_") THEN Files.Write( r, text[i,istr, j] );  END;  
 						INC( j );  INC( column );  breakline := (column > 80) & (text[i,istr, j] = BLANK);  
 						IF breakline THEN 
-							IF ~unix THEN Files.Write( r, CR );  END;  
-							Files.Write( r, NL );  breakline := FALSE;  column := 0;  
+							IF ~unix THEN Files.WriteChar( r, CR );  END;  
+							Files.WriteChar( r, NL );  breakline := FALSE;  column := 0;  
 						END;  
 					
 					UNTIL (text[i,istr, j] = 0X) OR (text[i,istr, j] = BLANK);  
-					IF text[i,istr, j] = BLANK THEN Files.Write( r, BLANK );  END;  
+					IF text[i,istr, j] = BLANK THEN Files.WriteChar( r, BLANK );  END;  
 								
 					INC( j );  
 				END;  
@@ -186,13 +177,13 @@ Out.Ln();	Out.String("Storage for verses : "); Out.String(sout);
 						
 			
 			INC(istr);	
-				IF ~unix THEN Files.Write( r, CR );  END;  
-				Files.Write( r, NL ); 
+				IF ~unix THEN Files.WriteChar( r, CR );  END;  
+				Files.WriteChar( r, NL ); 
 		END;
-				IF ~unix THEN Files.Write( r, CR );  END;  				Files.Write( r, NL ); 
+				IF ~unix THEN Files.WriteChar( r, CR );  END;  				Files.WriteChar( r, NL ); 
 			INC( i )
 		END;  
-		Files.Close( f );  Files.Register( f );  
+		Files.Close( r );
 	END writetext;  
 
 
@@ -203,7 +194,7 @@ Out.Ln();	Out.String("Storage for verses : "); Out.String(sout);
 	(* Command to list the different tags after calling the comman "Testbed.AalyzeXML" *)
 	VAR n: Tag;  first, st: Node;  
 	BEGIN 
-		
+                first := NIL;		
 		n := q.first;  
 		WHILE n # NIL DO NEW( st );  COPY( n.tagname, st.key );  InsertRanked( first, st );  n := n.next;  END;  
 		st := first;  Out.Ln(); Out.String("===============================================");
@@ -247,7 +238,7 @@ Out.Ln();	Out.String("Storage for verses : "); Out.String(sout);
 	END;
 	END SortKey; *)
 
-(*	PROCEDURE arplen*( n: Tag;  VAR maxarp: LONGINT );  
+(*	PROCEDURE arplen*( n: Tag;  VAR maxarp: INTEGER );  
 	(* When n is the first note of a sequence of arpeggionotes, then maxarpe is the number of arpeggio notes.*)
 	VAR m: Tag;  
 	BEGIN 
@@ -258,7 +249,7 @@ Out.Ln();	Out.String("Storage for verses : "); Out.String(sout);
 		END;  
 	END arplen;  *)
 
-	PROCEDURE gracelen*( n: Tag;  VAR maxgrace: LONGINT );  
+	PROCEDURE gracelen*( n: Tag;  VAR maxgrace: INTEGER );  
 	(* When n is the first note of a sequence of gracenotes, then maxgrace is the number of grace notes.*)
 	(* n.grace numbers the grace notes in a concsecutive series *)
 	VAR m: Tag;  
@@ -274,9 +265,9 @@ Out.Ln();	Out.String("Storage for verses : "); Out.String(sout);
 		END;  
 	END gracelen;  
 
-	PROCEDURE Outset*( s: SET;  VAR count: LONGINT;  VAR elemmap: ARRAY OF LONGINT );  
+	PROCEDURE Outset*( s: SET;  VAR count: INTEGER;  VAR elemmap: ARRAY OF INTEGER );  
 	(* prints a set in System.Log and returns the # of elements and a vector of elements in ascending order. *)
-	VAR i, j: LONGINT;  
+	VAR i, j: INTEGER;  
 	BEGIN 
 	IF voutput THEN	Out.Char( "{" ); END;  count := 0;  i := 0;  
 		REPEAT INC( i ) UNTIL (i = 31) OR (i IN s);  
@@ -307,7 +298,7 @@ Out.Ln();	Out.String("Storage for verses : "); Out.String(sout);
 
 PROCEDURE OutTag*( n: Tag;  ln: BOOLEAN );  
 	(* Writes the properties of one tag into System.Log. *)
-	VAR i: LONGINT;  
+	VAR i: INTEGER;  
 	
 	BEGIN 
 		IF (n # NIL ) (* & (n.part # 0) *) THEN 
@@ -360,10 +351,10 @@ PROCEDURE OutTag*( n: Tag;  ln: BOOLEAN );
 
 
 
-		PROCEDURE StoreTag*( itags: LONGINT;  tag, endtag: ARRAY OF CHAR;  part, voice, measure, note, attnum, dirnum, lastnote : LONGINT;  
-									  novalues: LONGINT;  names, values: ARRAY OF ARRAY OF CHAR;  between: ARRAY OF CHAR );  
+		PROCEDURE StoreTag*( itags: INTEGER;  tag, endtag: ARRAY OF CHAR;  part, voice, measure, note, attnum, dirnum, lastnote : INTEGER;  
+									  novalues: INTEGER;  names, values: ARRAY OF ARRAY OF CHAR;  between: ARRAY OF CHAR );  
 	(* Stores a decoded MusicXML tag as element of a linked list. *)
-	VAR new: Tag;  k: LONGINT;  
+	VAR new: Tag;  k: INTEGER;  
 		printobj: ARRAY 32 OF CHAR;  
 	BEGIN 
 		NEW( new );  new.nr := itags;  COPY( tag, new.tagname );  COPY( endtag, new.endtag );  new.part := part;  
@@ -405,7 +396,7 @@ Out.Int(itags,5); Out.String(tag); Out.Int(part,5); Out.Int(measure,5); Out.Int(
 
 	PROCEDURE FindAtt*( n: Tag;  name: ARRAY OF CHAR;  VAR value: ARRAY OF CHAR );  
 	(* Properties of a tag are stored as name-value pairs. The procedure finds the value of an attribute by its name. *)
-	VAR i: LONGINT;  
+	VAR i: INTEGER;  
 	BEGIN 
 		i := 0;  
 		WHILE (i < n.novalues) & (n.names[i] # name) DO INC( i ) END;  
@@ -414,7 +405,6 @@ Out.Int(itags,5); Out.String(tag); Out.Int(part,5); Out.Int(measure,5); Out.Int(
 		END;  
 	END FindAtt;  
 	PROCEDURE FindNextNote* (VAR n : Tag); (*  for removing cue notes ; finds next note after "n" or "n" when it is a note *)
-	VAR
 	BEGIN
 	IF n.tagname # "<note>" THEN
 		REPEAT n:= n.next UNTIL ( (n.tagname = "<note>" ) OR ( n.next = NIL) ) ;
@@ -422,9 +412,9 @@ Out.Int(itags,5); Out.String(tag); Out.Int(part,5); Out.Int(measure,5); Out.Int(
   END;
   END FindNextNote;
 	
-PROCEDURE PosInStaff*(pitchnote : CHAR;pitchoctave : INTEGER; clef : CHAR) : LONGINT;
+PROCEDURE PosInStaff*(pitchnote : CHAR;pitchoctave : INTEGER; clef : CHAR) : INTEGER;
 (* calculates the position of the note "pitchnote/pitchoctave" in the staff according to clef. *)
-VAR diff : LONGINT;
+VAR diff : INTEGER;
 BEGIN
 
 CASE clef OF
@@ -435,10 +425,10 @@ CASE clef OF
 ELSE Out.Ln(); Out.String("PosinStaff: clef not implemented : "); Out.Char(clef);
 END; RETURN diff;
 END PosInStaff;
-PROCEDURE DiaDiff(pitchnote : CHAR; pitchoctave : INTEGER; refnote : CHAR; refoctave : INTEGER) : LONGINT;
+PROCEDURE DiaDiff(pitchnote : CHAR; pitchoctave : INTEGER; refnote : CHAR; refoctave : INTEGER) : INTEGER;
 (* Calculates the diatonic difference between to notes in PMX notation. *)
 VAR
-diffnote, diffoctave : LONGINT;
+diffnote, diffoctave : INTEGER;
 BEGIN
 
 diffoctave := pitchoctave - refoctave;
@@ -462,7 +452,7 @@ RETURN imin;
 END 
 MinDist;
 PROCEDURE testMinDist*;
-VAR pos : ARRAY 5 OF INTEGER; x : INTEGER;
+VAR pos : ARRAY 5 OF INTEGER;
 	
 BEGIN
 pos[0] := 57;
@@ -474,8 +464,8 @@ Out.Ln(); Out.String("MinDIst test "); Out.Int (MinDist(279,pos,4),5);
 
 END testMinDist;
 	
-PROCEDURE pmxTremolo* (pitchnote : CHAR; pitchoctave : INTEGER; stem, clef : CHAR; nobeams : LONGINT; pmxdur0 : CHAR; VAR res : ARRAY OF CHAR);
-	VAR i,pos : LONGINT; offset : ARRAY 4 OF CHAR;
+PROCEDURE pmxTremolo* (pitchnote : CHAR; pitchoctave : INTEGER; stem, clef : CHAR; nobeams : INTEGER; pmxdur0 : CHAR; VAR res : ARRAY OF CHAR);
+	VAR i,pos : INTEGER; offset : ARRAY 4 OF CHAR;
 	BEGIN
 	
 	pos := PosInStaff(pitchnote,pitchoctave,clef);
@@ -502,26 +492,9 @@ PROCEDURE pmxTremolo* (pitchnote : CHAR; pitchoctave : INTEGER; stem, clef : CHA
 	
 	END pmxTremolo;
 	
-	
-	PROCEDURE ReadIntF(VAR W : Files.Rider; digits : LONGINT) : LONGINT;
-(* Formatted read of LONGINT from file *)
-VAR i : LONGINT; ints : ARRAY 16 OF CHAR;
-BEGIN
-loesch(ints);
-i := 0; WHILE i < digits DO Files.Read(W,ints[i]); INC(i) END;
-ints[i] := 0X; Strings.StrToInt(ints,i); RETURN i;
-END ReadIntF;
-PROCEDURE ReadStringF(VAR W : Files.Rider; digits : LONGINT; VAR s : ARRAY OF CHAR);
-(* Formatted read of STRING with length "digits"  from file *)
-VAR i : LONGINT; 
-BEGIN
-loesch(s);
-i := 0; WHILE i < digits DO Files.Read(W,s[i]); INC(i) END;
-s[i] := 0X;
-END ReadStringF;
-PROCEDURE ReadStringUntil*(VAR W : Files.Rider; split : CHAR; VAR s : ARRAY OF CHAR);
+PROCEDURE ReadStringUntil*(VAR W : Files.File; split : CHAR; VAR s : ARRAY OF CHAR);
 (* Formatted read of STRING until "split" Character  from file *)
-VAR i : LONGINT; c : CHAR;
+VAR i : INTEGER; c : CHAR;
 BEGIN
 loesch(s);
 i := 0; Files.Read(W,c);
@@ -536,7 +509,7 @@ END ReadStringUntil;
 
 	PROCEDURE APPzca* (VAR s,t : ARRAY OF CHAR);
 	(* Appends a 2nd \zcharnote-element to the first one. *)
-	VAR i,j : LONGINT;
+	VAR i,j : INTEGER;
 	BEGIN
 	i := Strings.Length(s);
 (*	Out.Ln(); Out.String("vorher : ");Out.String(s); Out.Ln(); Out.String(t); *)
@@ -553,8 +526,8 @@ BEGIN
 RETURN ( c = 20X ) OR ( c = 22X ) OR ( c = "," )
 
 END IsSep;
-PROCEDURE FindToken* (VAR s, t : ARRAY OF CHAR; VAR pos : LONGINT);
-VAR j : LONGINT;
+PROCEDURE FindToken* (VAR s, t : ARRAY OF CHAR; VAR pos : INTEGER);
+VAR j : INTEGER;
 BEGIN
 IF IsSep(s[pos] ) THEN REPEAT INC(pos) UNTIL (pos = Strings.Length(s)-1 ) OR ~IsSep(s[pos]); (* first CHAR # separator found *)
 END;
@@ -569,8 +542,8 @@ END FindToken;
 
 
 
-	PROCEDURE strbetween*( s: ARRAY OF CHAR;  VAR name: ARRAY OF CHAR;  VAR pos: LONGINT );  
-	VAR i, j: LONGINT;  
+	PROCEDURE strbetween*( s: ARRAY OF CHAR;  VAR name: ARRAY OF CHAR;  VAR pos: INTEGER );  
+	VAR i, j: INTEGER;  
 	BEGIN 
 		i := pos;  
 		WHILE (i < Strings.Length( s )) & (s[i] # DBLQUOTE) DO INC( i ) END;   (* Find first doublequote *)
@@ -587,18 +560,18 @@ END FindToken;
 	END strbetween;  
 	PROCEDURE Copywo*( VAR fin, fout: Files.File );  
 	(* Copies a File and eliminates multiple BLANKs. *)
-	VAR ch, first: CHAR;  rin, rout: Files.Rider;  column, line: LONGINT;  
+	VAR ch: CHAR;  column: INTEGER;  
 	BEGIN 
-		Files.Set( rin, fin, 0 );  Files.Set( rout, fout, 0 );  column := 0;  Files.Read( rin, ch );  
-		WHILE ~rin.eof DO 
-			Files.Write( rout, Strings.OberonToISO[ORD( ch )] );  INC( column );  
+		column := 0;  Files.ReadChar( fin, ch );  
+		WHILE ~Files.Eof(fin) DO 
+			Files.Write( fout, Strings.OberonToISO[ORD( ch )] );  INC( column );  
 			IF (ch = NL) THEN column := 0;  END;  
-			IF (column > 100) & (ch = BLANK) THEN column := 0;  Files.Write( rout, CR );  Files.Write( rout, NL );  END;  
+			IF (column > 100) & (ch = BLANK) THEN column := 0;  Files.WriteChar( fout, CR );  Files.WriteChar( fout, NL );  END;  
 			
 			(* 	IF ch =Strings.CR THEN Files.Write(R,NL); END; *)
 			IF (ch = BLANK) THEN 
-				WHILE (ch = BLANK) DO Files.Read( rin, ch );  END;  
-			ELSE Files.Read( rin, ch );  
+				WHILE (ch = BLANK) DO Files.ReadChar( fin, ch );  END;  
+			ELSE Files.ReadChar( fin, ch );  
 			
 			END;  ;  
 		
@@ -662,8 +635,8 @@ PROCEDURE NewBeat*( beat, beattype: INTEGER;  VAR res: ARRAY OF CHAR; blind : BO
 	  
 	
 	END NewBeat;   	
-PROCEDURE loeschint* ( VAR string: ARRAY OF LONGINT );  
-	(* resets an ARRAY OF LONGINT TO zero. *)
+PROCEDURE loeschint* ( VAR string: ARRAY OF INTEGER );  
+	(* resets an ARRAY OF INTEGER TO zero. *)
 	VAR i : INTEGER;
 	BEGIN 
 		i := 0;  
@@ -678,20 +651,20 @@ PROCEDURE loeschint* ( VAR string: ARRAY OF LONGINT );
 		i := 0;  
 		WHILE i < LEN( string ) DO string[i] := 0X;  INC( i ) END;  
 	END loesch;
-PROCEDURE FindLetter*( s: ARRAY OF CHAR;  VAR pos: LONGINT;  VAR eor: BOOLEAN );  
+PROCEDURE FindLetter*( s: ARRAY OF CHAR;  VAR pos: INTEGER;  VAR eor: BOOLEAN );  
 	(* Returns the position of the next letter in the string "s" starting at position "pos". 
 	    When  no letter has been found *)
-	VAR i: LONGINT;  
+	VAR i: INTEGER;  
 	BEGIN 
 		i := pos;  
 		WHILE (s[i] # ">") & ~Strings.IsAlpha( s[i] ) DO INC( i ) END;  
 		IF Strings.IsAlpha( s[i] ) THEN pos := i;  ELSE eor := TRUE END;  
 	END FindLetter;  
 
-	PROCEDURE ReadUntil*( s: ARRAY OF CHAR;  VAR pos: LONGINT;  stop: CHAR;  VAR word: ARRAY OF CHAR;  
+	PROCEDURE ReadUntil*( s: ARRAY OF CHAR;  VAR pos: INTEGER;  stop: CHAR;  VAR word: ARRAY OF CHAR;  
 									    VAR eor: BOOLEAN );  
 	(* Reads a word starting at Pposition "pos" and ending before "stop"-character. BLANKs are excluded *)
-	VAR i, j: LONGINT;  
+	VAR i, j: INTEGER;  
 	BEGIN 
 		loesch( word );  i := pos;  j := 0;  
 		WHILE ( j < LEN(word))  & (s[i] # ">") & (s[i] # stop) DO   (*correction 9.11.2016 *)
@@ -706,27 +679,27 @@ PROCEDURE FindLetter*( s: ARRAY OF CHAR;  VAR pos: LONGINT;  VAR eor: BOOLEAN );
 			(* Out.Ln(); Out.String("ReadUntil : stop character  |"); Out.Char(stop); Out.String("| not found."); *) END;  
 	END ReadUntil;  
 
-	PROCEDURE FindChar*( s: ARRAY OF CHAR;  VAR pos: LONGINT;  c: CHAR;  VAR eor: BOOLEAN );  
+	PROCEDURE FindChar*( s: ARRAY OF CHAR;  VAR pos: INTEGER;  c: CHAR;  VAR eor: BOOLEAN );  
 	(* Returns the position of the next occurence of character c in the string "s" starting at position "pos". 
 	    When  no letter has been found *)
-	VAR i: LONGINT;  
+	VAR i: INTEGER;  
 	BEGIN 
 		i := pos;  
 		WHILE (s[i] # ">") & (s[i] # c) DO INC( i ) END;  
 		IF (s[i] = c) THEN pos := i;  ELSE eor := TRUE END;  
 	END FindChar;  
-	PROCEDURE Max*( i, j: LONGINT ): LONGINT;  
+	PROCEDURE Max*( i, j: INTEGER ): INTEGER;  
 	BEGIN 
 		IF i >= j THEN RETURN i ELSE RETURN j END;  
 	END Max;  
 
-	PROCEDURE Min*( i, j: LONGINT ): LONGINT;  
+	PROCEDURE Min*( i, j: INTEGER ): INTEGER;  
 	BEGIN 
 		IF i <= j THEN RETURN i ELSE RETURN j END;  
 	END Min;
 PROCEDURE ExtractDigits*( sin: ARRAY OF CHAR;  VAR sout: ARRAY OF CHAR );  
 	(* finds the first sequence of digits in a string *)
-	VAR i, j: LONGINT;  
+	VAR i, j: INTEGER;  
 	BEGIN 
 		i := 0;  
 		IF ~Strings.IsDigit( sin[i] ) THEN 
@@ -741,13 +714,13 @@ PROCEDURE ExtractDigits*( sin: ARRAY OF CHAR;  VAR sout: ARRAY OF CHAR );
 
 	PROCEDURE ExtractInt*( s: ARRAY OF CHAR ): INTEGER;  
 	(* Converts String to INTEGERr s. *)
-	VAR res: LONGINT;  shortres: INTEGER;  
+	VAR res: INTEGER;  shortres: INTEGER;  
 	BEGIN 
 		Strings.StrToInt( s, res );  shortres := SHORT( res );  RETURN shortres;  
 	END ExtractInt;  
-(*	PROCEDURE keytopsv* (key : ARRAY OF CHAR; c : CHAR; VAR p,s,v : LONGINT);
+(*	PROCEDURE keytopsv* (key : ARRAY OF CHAR; c : CHAR; VAR p,s,v : INTEGER);
 	(* splits key into components : part, staff, voice *)
-	VAR i,j : LONGINT; pe : ARRAY 4 OF CHAR;
+	VAR i,j : INTEGER; pe : ARRAY 4 OF CHAR;
 	BEGIN
 	i := 0; WHILE key[i] # c DO pe[i] := key[i]; INC(i) END;
 	Strings.StrToInt(pe,p); 
@@ -755,8 +728,8 @@ PROCEDURE ExtractDigits*( sin: ARRAY OF CHAR;  VAR sout: ARRAY OF CHAR );
 	
 	
 	END keytopsv; *)
-(*	PROCEDURE keytopsm* (key : ARRAY OF CHAR; c : CHAR; VAR p,s,m : LONGINT);
-	VAR i,j : LONGINT; pe : ARRAY 8 OF CHAR;
+(*	PROCEDURE keytopsm* (key : ARRAY OF CHAR; c : CHAR; VAR p,s,m : INTEGER);
+	VAR i,j : INTEGER; pe : ARRAY 8 OF CHAR;
 	BEGIN
 	i := 0; WHILE key[i] # c DO pe[i] := key[i]; INC(i) END;
 	Strings.StrToInt(pe,p); 
@@ -769,7 +742,7 @@ PROCEDURE ExtractDigits*( sin: ARRAY OF CHAR;  VAR sout: ARRAY OF CHAR );
 	
 	END keytopsm; *)
 
-(*	PROCEDURE psv2String*( part, staff, voice: LONGINT;  VAR key: ARRAY OF CHAR );  
+(*	PROCEDURE psv2String*( part, staff, voice: INTEGER;  VAR key: ARRAY OF CHAR );  
 	(* stores part staff voice in a string separated by "/" *)
 	VAR res: ARRAY 32 OF CHAR; partc : ARRAY  5 OF CHAR;
 	BEGIN 
@@ -779,7 +752,7 @@ PROCEDURE ExtractDigits*( sin: ARRAY OF CHAR;  VAR sout: ARRAY OF CHAR );
 		Strings.AppendCh(key,"/");
 		Strings.IntToStr( voice, res );  Strings.Append( key, res );  
 	END psv2String;  
-	PROCEDURE psmv2String*( part, staff, voice, measure : LONGINT;  VAR key: ARRAY OF CHAR ); 
+	PROCEDURE psmv2String*( part, staff, voice, measure : INTEGER;  VAR key: ARRAY OF CHAR ); 
 		(* stores part/ staff/ voice/ measure in a string separated by "/" *)
  
 	VAR res: ARRAY 32 OF CHAR; partc : ARRAY  5 OF CHAR;
@@ -792,7 +765,7 @@ PROCEDURE ExtractDigits*( sin: ARRAY OF CHAR;  VAR sout: ARRAY OF CHAR );
      	Strings.IntToStr( voice, res );  Strings.Append( key, res );  
 	END psmv2String;  	
 	
-	PROCEDURE mpsvn2String*( measure, part, staff, voice, note : LONGINT;  VAR key: ARRAY OF CHAR ); 
+	PROCEDURE mpsvn2String*( measure, part, staff, voice, note : INTEGER;  VAR key: ARRAY OF CHAR ); 
 		(* stores part/ staff/ voice/ measure in a string separated by "/" *)
  (* Vorsicht  Sortierung wie WritePmx *)
 	VAR res: ARRAY 32 OF CHAR; partc : ARRAY  5 OF CHAR;
@@ -810,7 +783,7 @@ PROCEDURE ExtractDigits*( sin: ARRAY OF CHAR;  VAR sout: ARRAY OF CHAR );
  
 	END mpsvn2String;  *)
 
-	PROCEDURE  percussionclef* (ps : LONGINT; VAR perclef, perline : ARRAY OF CHAR);
+	PROCEDURE  percussionclef* (ps : INTEGER; VAR perclef, perline : ARRAY OF CHAR);
 	VAR psstring : ARRAY 4 OF CHAR;
 	BEGIN
 	
@@ -818,8 +791,8 @@ PROCEDURE ExtractDigits*( sin: ARRAY OF CHAR;  VAR sout: ARRAY OF CHAR );
 	Strings.Append(perclef,psstring);Strings.Append(perclef,"}\drumclef\");
 	COPY ("\\setlines{",perline); Strings.Append(perline,psstring);Strings.Append (perline,"}{1}\");
 	END percussionclef;
-	PROCEDURE left*( rec: ARRAY OF CHAR;  anz: LONGINT;  pat: ARRAY OF CHAR ): BOOLEAN;  
-	VAR i: LONGINT;  res: BOOLEAN;  
+	PROCEDURE left*( rec: ARRAY OF CHAR;  anz: INTEGER;  pat: ARRAY OF CHAR ): BOOLEAN;  
+	VAR i: INTEGER;  res: BOOLEAN;  
 	BEGIN 
 		i := 0;  res := TRUE;  
 		WHILE i < anz DO res := res & (pat[i] = rec[i]);  INC( i ) END;  
@@ -827,7 +800,7 @@ PROCEDURE ExtractDigits*( sin: ARRAY OF CHAR;  VAR sout: ARRAY OF CHAR );
 	END left; 
 PROCEDURE FilterTeX*( in: ARRAY OF CHAR;  VAR out: ARRAY OF CHAR );  
 	(* Removes certain characters like "&", "_" and "^" which may caus trouble in the TeX compilation; *)
-	VAR i, j: LONGINT;  
+	VAR i, j: INTEGER;  
 	BEGIN 
 		i := 0;  j := 0;  
 		WHILE (i < Strings.Length( in )) DO 
@@ -835,22 +808,22 @@ PROCEDURE FilterTeX*( in: ARRAY OF CHAR;  VAR out: ARRAY OF CHAR );
 			INC( i );  
 		END;  
 	END FilterTeX;
-	PROCEDURE fill0* (in : LONGINT; outdigits : LONGINT; VAR out : ARRAY OF CHAR);
+	PROCEDURE fill0* (in : INTEGER; outdigits : INTEGER; VAR out : ARRAY OF CHAR);
 	(* fills a positive integer "in" from left with zeros up to "outdigits" digits. *)
-	VAR i, indigits : LONGINT; inc : ARRAY 12 OF CHAR;
+	VAR i, indigits : INTEGER; inc : ARRAY 12 OF CHAR;
 	BEGIN
 	Strings.IntToStr(in,inc); indigits := Strings.Length(inc); i := indigits;
 	WHILE i < outdigits DO out[i-indigits] := "0"; INC(i); END;
 	Strings.Append(out,inc);
 	END fill0;
-	PROCEDURE ReadUntilTx*( VAR R: Files.Rider;  stop: CHAR;  VAR s: ARRAY OF CHAR );  
+	PROCEDURE ReadUntilTx*( VAR R: Files.File;  stop: CHAR;  VAR s: ARRAY OF CHAR );  
 	(* Reads from a given file position until a stop character and stores in string. *)
-	VAR i: LONGINT;  c: CHAR;  
+	VAR i: INTEGER;  c: CHAR;  
 	BEGIN 
 		Files.Read( R, c );  i := 0;
 		REPEAT IF ~WhiteSpace(c) THEN s[i] := c; INC(i); END; Files.Read(R,c);  		
 	
-		UNTIL R.eof OR ( c = stop );
+		UNTIL Files.Eof(R) OR ( c = stop );
 		
 		s[i] := c;	s[i+1] := 0X;   
 		
@@ -861,61 +834,49 @@ PROCEDURE FilterTeX*( in: ARRAY OF CHAR;  VAR out: ARRAY OF CHAR );
 	ws := (c = BLANK) OR ( c = TAB ) OR ( c = CR ) OR ( c = NL );
 	RETURN ws;
 	END WhiteSpace;
-	PROCEDURE testws*;
-	VAR f : Files.File; R : Files.Rider; c : CHAR; rec : ARRAY 256 OF CHAR; i : LONGINT;
-	BEGIN
-	f := Files.Old ("d:/musix/xml/vivaldi.xml");
-	Files.Set(R,f,0);
-	WHILE ~R.eof DO
-	Files.Read (R,c);
-	IF c # "<" THEN REPEAT Files.Read(R,c) UNTIL R.eof OR (c = "<" ); END;
-	i := 0; rec[i] := c; REPEAT Files.Read(R,c); INC(i); rec[i] := c; UNTIL R.eof OR (c = ">" ); 
-	rec[i+1] := 0X;
-	Out.Ln();Out.String(rec);
-	END;
-	END testws;
-	PROCEDURE ReadRecn1*( VAR R: Files.Rider;  VAR rec: ARRAY OF CHAR;  VAR length: LONGINT );  
+
+	PROCEDURE ReadRecn1*( VAR R: Files.File;  VAR rec: ARRAY OF CHAR;  VAR length: INTEGER );  
 	(* Reads one record from the MusicXML file. removes leading BLANKs and TABs and CR, NL *)
-	VAR i: LONGINT;  c: CHAR;  
+	VAR i: INTEGER;  c: CHAR;  
 	BEGIN 
 		Files.Read( R, c );  
 		IF WhiteSpace(c) THEN REPEAT Files.Read(R,c) UNTIL  ~WhiteSpace(c); END;
 		i := 0;  
-		WHILE (~R.eof) & (i < LEN( rec ) - 1) & (c # CR) & (c # NL) DO rec[i] := c;  Files.Read( R, c );  INC( i ) END;  
+		WHILE (~Files.Eof(R)) & (i < LEN( rec ) - 1) & (c # CR) & (c # NL) DO rec[i] := c;  Files.ReadChar( R, c );  INC( i ) END;  
 		rec[i] := 0X;  length := i;  
 	END ReadRecn1;  
-		PROCEDURE ReadRecn*( VAR R: Files.Rider;  VAR rec: ARRAY OF CHAR;  VAR length: LONGINT );  
+		PROCEDURE ReadRecn*( VAR R: Files.File;  VAR rec: ARRAY OF CHAR;  VAR length: INTEGER );  
 	(* Reads one record from the MusicXML file. removes leading BLANKs and TABs and CR, NL *)
-	VAR i: LONGINT;  c: CHAR;  
+	VAR i: INTEGER;  c: CHAR;  
 	BEGIN 
-		Files.Read( R, c );  
-		IF (c = NL) THEN Files.Read( R, c );  END;  
+		Files.ReadChar( R, c );  
+		IF (c = NL) THEN Files.ReadChar( R, c );  END;  
 		(* Remove leading Blanks and Tabs *) ;  
 		IF (c = BLANK) OR (c = TAB) THEN 
 			WHILE (c = BLANK) OR (c = TAB) DO Files.Read( R, c );  END;  
 		END;  
 		i := 0;  
-		WHILE (~R.eof) & (i < LEN( rec ) - 1) & (c # CR) & (c # NL) DO rec[i] := c;  Files.Read( R, c );  INC( i ) END;  
+		WHILE (~Files.Eof(R)) & (i < LEN( rec ) - 1) & (c # CR) & (c # NL) DO rec[i] := c;  Files.ReadChar( R, c );  INC( i ) END;  
 		rec[i] := 0X;  length := i;  
 	END ReadRecn;  
 
-	PROCEDURE SkipUntilPattern*( VAR R: Files.Rider;  pattern: ARRAY OF CHAR );  
+	PROCEDURE SkipUntilPattern*( VAR R: Files.File;  pattern: ARRAY OF CHAR );  
 	(* Skips records from XML file until pattern is reached. *)
-	VAR pos: LONGINT;  
+	VAR pos: INTEGER;  
 		rec: ARRAY 256 OF CHAR;  
 	BEGIN 
 		pos := -1;  
-		WHILE ~R.eof & (pos = -1) DO (* ????????????????????? pos # -1 *)
+		WHILE ~Files.Eof(R) & (pos = -1) DO (* ????????????????????? pos # -1 *)
 			ReadRec( R, rec );   (* Out.Ln();Out.String("skip : ");Out.String(rec); *)
 			Strings.Search( pattern, rec, pos )
 		END;  
 	END SkipUntilPattern;  
-		PROCEDURE ReadRec*( VAR R: Files.Rider;  VAR rec: ARRAY OF CHAR );  
+		PROCEDURE ReadRec*( VAR R: Files.File;  VAR rec: ARRAY OF CHAR );  
 	(* Reads one record from the MusicXML file. removes leading BLANKs and TABs and CR NL *)
-	VAR i: LONGINT;  c: CHAR;  
+	VAR i: INTEGER;  c: CHAR;  
 	BEGIN 
 		SkipTextChar( R, BLANK, c );  i := 0;  
-		WHILE (~R.eof) & (i < LEN( rec ) - 1) & (c # 0DX) & (c # 0AX) DO 
+		WHILE (~Files.Eof(R)) & (i < LEN( rec ) - 1) & (c # 0DX) & (c # 0AX) DO 
 			IF (c # TAB) THEN rec[i] := c;  INC( i );  END;  
 			Files.Read( R, c )
 		END;  
@@ -926,20 +887,20 @@ PROCEDURE FilterTeX*( in: ARRAY OF CHAR;  VAR out: ARRAY OF CHAR );
 	
 	END ReadRec;  
 
-	PROCEDURE SkipTextChar*( VAR R: Files.Rider;  skip: CHAR;  VAR found: CHAR );  
+	PROCEDURE SkipTextChar*( VAR R: Files.File;  skip: CHAR;  VAR found: CHAR );  
 	(* skips over leading characters  , e.g. Blanks in an XML-File and returns the first character # "skip"*)
 	VAR c: CHAR;  
 	BEGIN 
 		Files.Read( R, c );  
 		IF (c = skip) THEN 
-			WHILE ~R.eof & (c = skip) DO Files.Read( R, c );  END;  
+			WHILE ~Files.Eof(R) & (c = skip) DO Files.Read( R, c );  END;  
 			IF (c # skip) THEN found := c;  ELSE found := 0X END;  
 		ELSE found := c
 		END;  
 	END SkipTextChar;  
-		PROCEDURE ReadfromtoString*( VAR s: ARRAY OF CHAR;  from, to: LONGINT;  VAR between: ARRAY OF CHAR);  
+		PROCEDURE ReadfromtoString*( VAR s: ARRAY OF CHAR;  from, to: INTEGER;  VAR between: ARRAY OF CHAR);  
 	(* Reads the substring "between" inside string "s", starting with "from" and ending with "to" -1 . *)
-	VAR k, i: LONGINT;  ltins: BOOLEAN;  
+	VAR k, i: INTEGER;  ltins: BOOLEAN;  
 	BEGIN 
 		i := from;  k := 0;  ltins := FALSE;  
 		WHILE (k < LEN( between ) ) & (i < to) DO  (* ltins := ltins OR (s[i] = "<") OR (s[i] = ">"); *)
@@ -948,23 +909,22 @@ PROCEDURE FilterTeX*( in: ARRAY OF CHAR;  VAR out: ARRAY OF CHAR );
 		between[k] := 0X;  
 		(*	IF ltins THEN loesch( between ) END;  *)
 	END ReadfromtoString; 
-	PROCEDURE FindName*( s: ARRAY OF CHAR;  VAR pos: LONGINT;  VAR name: ARRAY OF CHAR;  VAR eor: BOOLEAN );  
+	PROCEDURE FindName*( s: ARRAY OF CHAR;  VAR pos: INTEGER;  VAR name: ARRAY OF CHAR;  VAR eor: BOOLEAN );  
 	BEGIN 
 		FindLetter( s, pos, eor );  
 		IF ~eor THEN ReadUntil( s, pos, "=", name, eor );  END;  
 	END FindName;  
 
-	PROCEDURE FindValue*( s: ARRAY OF CHAR;  VAR pos: LONGINT;  VAR value: ARRAY OF CHAR;  VAR eor: BOOLEAN );  
-	VAR 
+	PROCEDURE FindValue*( s: ARRAY OF CHAR;  VAR pos: INTEGER;  VAR value: ARRAY OF CHAR;  VAR eor: BOOLEAN );  
 	BEGIN 
 		FindChar( s, pos, 22X, eor );   (* Out.Ln(); Out.String("FindValue: pos : "); Out.Int(pos,5); *) INC( pos );  
 		IF ~eor THEN ReadUntil( s, pos, 22X, value, eor );  END;  
 	END FindValue;  
 		PROCEDURE AnalyzeTag2*( rec: ARRAY OF CHAR;  VAR tag, endtag, between: ARRAY OF CHAR;  
-										    VAR names, values: ARRAY OF ARRAY OF CHAR;  VAR novalues: LONGINT );  
+										    VAR names, values: ARRAY OF ARRAY OF CHAR;  VAR novalues: INTEGER );  
 	(*  extracts the information from MusicXML-tags. 
   Depending on which tag, we have a number of name-value-pairs as well as the word between ">" and "<"*)
-	VAR i, j, k, from, to, pos, isave: LONGINT;  eor: BOOLEAN;  
+	VAR i, j, k, from, to, pos, isave: INTEGER;  eor: BOOLEAN;  
 	BEGIN 
 		i := 0;  loesch( tag );  loesch( endtag );  loesch( between );  novalues := 0;  j := 0;  
 		WHILE j < 10 DO loesch( names[j] );  loesch( values[j] );  INC( j ) END;  
@@ -1001,7 +961,7 @@ PROCEDURE FilterTeX*( in: ARRAY OF CHAR;  VAR out: ARRAY OF CHAR );
 		(*	Out.String(tag); Out.Char("|"); Out.String(endtag); Out.Char("|");Out.String(between); Out.Char("|");
 	i := 0; WHILE i < novalues DO Out.String(names[i]);Out.Char("="); Out.String(values[i]); INC(i); END;  *)
 	END AnalyzeTag2;  
-	PROCEDURE FindIProperty*( n: Tag;  tagname, pattern: ARRAY OF CHAR;  VAR res: LONGINT );  
+	PROCEDURE FindIProperty*( n: Tag;  tagname, pattern: ARRAY OF CHAR;  VAR res: INTEGER );  
 	(* searches n.tagname for the occurrence of "pattern"  and finds Integer value of "pattern"		*)
 	VAR endtag: ARRAY 32 OF CHAR;  
 	BEGIN 
@@ -1020,7 +980,7 @@ PROCEDURE FilterTeX*( in: ARRAY OF CHAR;  VAR out: ARRAY OF CHAR );
 	
 	END FindIProperty;  
 
-	PROCEDURE FindProperty*( n: Tag;  tagname, pattern: ARRAY OF CHAR;  VAR res: LONGINT );  
+	PROCEDURE FindProperty*( n: Tag;  tagname, pattern: ARRAY OF CHAR;  VAR res: INTEGER );  
 	(* Finds the value of an  integer property, corresponding to "pattern", e.g. "staff" or "voice".  		*)
 	VAR endtag: ARRAY 32 OF CHAR;  
 	BEGIN 
@@ -1037,8 +997,8 @@ PROCEDURE FilterTeX*( in: ARRAY OF CHAR;  VAR out: ARRAY OF CHAR );
 		END;  
 	
 	END FindProperty; 
-	PROCEDURE testmakekey*(maxpart, measure : LONGINT; VAR keytotal : ARRAY OF CHAR);
-	VAR keystr : ARRAY 16 OF CHAR; i : LONGINT;	
+	PROCEDURE testmakekey*(maxpart, measure : INTEGER; VAR keytotal : ARRAY OF CHAR);
+	VAR keystr : ARRAY 16 OF CHAR; i : INTEGER;	
 	BEGIN
 (*	Out.Ln(); Out.String("1testmake");
 	i := 1; WHILE i <= maxpart DO
@@ -1064,7 +1024,7 @@ END; IF (keytotal = "K") THEN keytotal[0] := 0X END;
  (*	Out.Ln();Out.String("keytotal : ");Out.String(keytotal);*)
 	END testmakekey; 
 	
-	PROCEDURE Makekeystr* (maxpart,part : LONGINT; keys : INTEGER; VAR keystr : ARRAY OF CHAR);
+	PROCEDURE Makekeystr* (maxpart,part : INTEGER; keys : INTEGER; VAR keystr : ARRAY OF CHAR);
 	VAR  dummy : ARRAY 4 OF CHAR;  
 	BEGIN
 	       COPY ("Ki" , keystr); IF ( part # maxpart ) THEN COPY ("i", keystr); END;

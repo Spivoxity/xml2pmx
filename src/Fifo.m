@@ -1,10 +1,10 @@
 MODULE Fifo;
-IMPORT Out := WCout; 
-VAR
+IMPORT Out;
+
 TYPE
   Node* = POINTER TO NodeDesc;
   NodeDesc = RECORD
-  	key* : LONGINT;
+  	key* : INTEGER;
   	next : Node
   END;
   FIFO* = RECORD
@@ -13,11 +13,11 @@ TYPE
   slur* = POINTER TO slurlist; 	  
   slurlist* = RECORD(NodeDesc)
   id, start, stop : CHAR;
-  ps, voice, measure, note : LONGINT;
+  ps, voice, measure, note : INTEGER;
   END;
- PROCEDURE smallfree*(used : SET) : LONGINT;
+ PROCEDURE smallfree*(used : SET) : INTEGER;
 	  (* finds the lowest INTEGER included in "used" *)
-	  VAR i : LONGINT;
+	  VAR i : INTEGER;
 	  BEGIN
 	  i := -1; 
 	  REPEAT INC(i); UNTIL (i IN used);
@@ -40,7 +40,7 @@ TYPE
  END DequeuedNode; 
  
 PROCEDURE testfifo*;
-VAR m, n : Node; q : FIFO; i : LONGINT; used : SET;
+VAR m, n : Node; q : FIFO; i : INTEGER; used : SET;
 BEGIN
 i := 0; 
 WHILE i < 10 DO 

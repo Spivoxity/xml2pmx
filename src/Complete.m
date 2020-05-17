@@ -1,10 +1,10 @@
 MODULE Complete;
-IMPORT Strings := Strings0,  Out := LCout; 
-VAR pmxdur : ARRAY 10 OF ARRAY 4 OF CHAR; durvec : ARRAY 10 OF INTEGER; ixmax : LONGINT; 
+IMPORT Strings := Strings0, Out; 
+VAR pmxdur : ARRAY 10 OF ARRAY 4 OF CHAR; durvec : ARRAY 10 OF INTEGER; ixmax : INTEGER; 
 notetypexml: ARRAY 10 OF ARRAY 8 OF CHAR; notetypepmx: ARRAY 10 OF CHAR;  
 notetypei : ARRAY 10 OF INTEGER; (* inverse of notetype index 0 => 64 *)
-	PROCEDURE erasetime*(nostaves : LONGINT;  VAR time: ARRAY OF ARRAY OF INTEGER );  
-	VAR ps, i, j: LONGINT;  
+	PROCEDURE erasetime*(nostaves : INTEGER;  VAR time: ARRAY OF ARRAY OF INTEGER );  
+	VAR ps, i, j: INTEGER;  
 	BEGIN 
 		ps := nostaves - 1;  
 		WHILE (ps >= 0) DO 
@@ -44,7 +44,7 @@ notetypei : ARRAY 10 OF INTEGER; (* inverse of notetype index 0 => 64 *)
 
 
  PROCEDURE CalcForward* (note,div : INTEGER; VAR res : ARRAY OF CHAR);
-	VAR i,index, rest : INTEGER; 	
+	VAR i : INTEGER; 	
 	BEGIN	
 	i := 0; WHILE i < 8 DO durvec[i]:= 0 ; INC(i) END; (* erase durvec *)
 
@@ -86,7 +86,7 @@ notetypei : ARRAY 10 OF INTEGER; (* inverse of notetype index 0 => 64 *)
 	
 	PROCEDURE dur2beat* (duration,divisions : INTEGER; VAR beat, beattype : INTEGER);
 	(* calculates beat and beattype from duration of a measure *)	
-	VAR res : ARRAY 32 OF CHAR; i : INTEGER;
+	VAR i : INTEGER;
 	BEGIN
 		i := 0; WHILE i < 8 DO durvec[i]:= 0 ; INC(i) END; (* erase durvec *)
 
@@ -111,17 +111,6 @@ notetypei : ARRAY 10 OF INTEGER; (* inverse of notetype index 0 => 64 *)
 	dur2beat(36,48, beat, beattype);
 	END testdur2beat;
 	
-	PROCEDURE CalcDur (durvec : ARRAY OF INTEGER; VAR res : ARRAY OF CHAR);
-	(* durvec is a vector of 0s and 1s, so that res := sum (pmxdur[i] * durvec[i]; i := 0 to 6 )  
-	routine is made for detecting dots and double dots *)
-	VAR i : INTEGER; pmxdur : ARRAY 7 OF CHAR;
-	BEGIN
-
-	i := 0; WHILE durvec[i] = 0 DO INC(i) END; res[0] := pmxdur[i]; 
-	IF (i < 6) & (durvec[i+1] = 1) THEN Strings.AppendCh(res,"d"); 
-			IF ( i < 5 ) & (durvec[i+2] = 1) THEN Strings.AppendCh(res,"d"); END
-	END; Strings.AppendCh(res,0X);
-	END CalcDur;
 	PROCEDURE Durit(note,div : INTEGER);
 	VAR index, rest, i : INTEGER;
 	BEGIN
@@ -222,7 +211,7 @@ Dur2PMX (1024,1536,res);
 END testDur2PMX;
 PROCEDURE Complete* (from, to, divisions, measureduration : INTEGER; VAR before, after : ARRAY  OF CHAR); 
 		(* solves the problem of dangling notes created with the backup or forward statement of MusicXML *)
-	VAR beforedur, afterdur, index, rest, i : INTEGER;
+	VAR beforedur, afterdur, i : INTEGER;
 	BEGIN
 	beforedur :=  from - 1;
 	afterdur := measureduration - to;

@@ -2,7 +2,6 @@ MODULE Strings0;	(** portable *) (* ejz, *)
 
 (** Strings is a utility module that provides procedures to manipulate strings.
 		Note: All strings MUST be 0X terminated. *)
-	IMPORT Reals;
 	CONST
 		CR* = 0DX; (** the Oberon end of line character *)
 		Tab* = 09X; (** the horizontal tab character *)
@@ -14,8 +13,8 @@ MODULE Strings0;	(** portable *) (* ejz, *)
 		CRLF*: ARRAY 4 OF CHAR; (** end of line "string" used by MS-DOS and most TCP protocols *)
 
 (** Length of str. *)
-	PROCEDURE Length*(VAR str(** in *): ARRAY OF CHAR): LONGINT;
-		VAR i, l: LONGINT;
+	PROCEDURE Length*(VAR str(** in *): ARRAY OF CHAR): INTEGER;
+		VAR i, l: INTEGER;
 	BEGIN
 		l := LEN(str); i := 0;
 		WHILE (i < l) & (str[i] # 0X) DO
@@ -26,7 +25,7 @@ MODULE Strings0;	(** portable *) (* ejz, *)
 
 (** Append this to to. *)
 	PROCEDURE Append*(VAR to(** in/out *): ARRAY OF CHAR; this: ARRAY OF CHAR);
-		VAR i, j, l: LONGINT;
+		VAR i, j, l: INTEGER;
 	BEGIN
 		i := 0;
 		WHILE to[i] # 0X DO
@@ -41,7 +40,7 @@ MODULE Strings0;	(** portable *) (* ejz, *)
 
 (** Append this to to. *)
 	PROCEDURE AppendCh*(VAR to(** in/out *): ARRAY OF CHAR; this: CHAR);
-		VAR i: LONGINT;
+		VAR i: INTEGER;
 	BEGIN
 		i := 0;
 		WHILE to[i] # 0X DO
@@ -115,7 +114,7 @@ MODULE Strings0;	(** portable *) (* ejz, *)
 
 (** Convert str to all lower-case letters. *)
 	PROCEDURE Lower*(VAR str(** in *), lstr(** out *): ARRAY OF CHAR);
-		VAR i: LONGINT;
+		VAR i: INTEGER;
 	BEGIN
 		i := 0;
 		WHILE str[i] # 0X DO
@@ -126,7 +125,7 @@ MODULE Strings0;	(** portable *) (* ejz, *)
 
 (** Convert str to all upper-case letters. *)
 	PROCEDURE Upper*(VAR str(** in *), ustr(** out *): ARRAY OF CHAR);
-		VAR i: LONGINT;
+		VAR i: INTEGER;
 	BEGIN
 		i := 0;
 		WHILE str[i] # 0X DO
@@ -137,7 +136,7 @@ MODULE Strings0;	(** portable *) (* ejz, *)
 
 (** Is str prefixed by pre? *)
 	PROCEDURE Prefix*(pre: ARRAY OF CHAR; VAR str(** in *): ARRAY OF CHAR): BOOLEAN;
-		VAR i: LONGINT;
+		VAR i: INTEGER;
 	BEGIN
 		i := 0;
 		WHILE (pre[i] # 0X) & (pre[i] = str[i]) DO
@@ -148,7 +147,7 @@ MODULE Strings0;	(** portable *) (* ejz, *)
 
 (** Checks if str is prefixed by pre. The case is ignored. *)
 	PROCEDURE CAPPrefix*(pre: ARRAY OF CHAR; VAR str(** in *): ARRAY OF CHAR): BOOLEAN;
-		VAR i: LONGINT;
+		VAR i: INTEGER;
 	BEGIN
 		i := 0;
 		WHILE (pre[i] # 0X) & (CAP(pre[i]) = CAP(str[i])) DO
@@ -159,7 +158,7 @@ MODULE Strings0;	(** portable *) (* ejz, *)
 
 (** Compare str1 to str2. The case is ignored. *)
 	PROCEDURE CAPCompare*(VAR str1(** in *), str2(** in *): ARRAY OF CHAR): BOOLEAN;
-		VAR i: LONGINT;
+		VAR i: INTEGER;
 	BEGIN
 		i := 0;
 		WHILE (str1[i] # 0X) & (str2[i] # 0X) & (CAP(str1[i]) = CAP(str2[i])) DO
@@ -170,7 +169,7 @@ MODULE Strings0;	(** portable *) (* ejz, *)
 
 (** Get the parameter-value on line. The parameter value is started behind the first colon character. *)
 	PROCEDURE GetPar*(VAR line(** in *), par(** out *): ARRAY OF CHAR);
-		VAR i, j, l: LONGINT;
+		VAR i, j, l: INTEGER;
 	BEGIN
 		i := 0;
 		WHILE (line[i] # 0X) & (line[i] # ":") DO
@@ -191,7 +190,7 @@ MODULE Strings0;	(** portable *) (* ejz, *)
 
 (** Get the suffix of str. The suffix is started by the last dot in str. *)
 	PROCEDURE GetSuffix*(VAR str(** in *), suf(** out *): ARRAY OF CHAR);
-		VAR i, j, l, dot: LONGINT;
+		VAR i, j, l, dot: INTEGER;
 	BEGIN
 		dot := -1; i := 0;
 		WHILE str[i] # 0X DO
@@ -214,7 +213,7 @@ MODULE Strings0;	(** portable *) (* ejz, *)
 
 (** Change the suffix of str to suf. *)
 	PROCEDURE ChangeSuffix*(VAR str(** in/out *): ARRAY OF CHAR; suf: ARRAY OF CHAR);
-		VAR i, j, l, dot: LONGINT;
+		VAR i, j, l, dot: INTEGER;
 	BEGIN
 		dot := -1; i := 0;
 		WHILE str[i] # 0X DO
@@ -235,14 +234,14 @@ MODULE Strings0;	(** portable *) (* ejz, *)
 	END ChangeSuffix;
 
 (** Search in src starting at pos for the next occurrence of pat.  Returns pos=-1 if not found. *)
-	PROCEDURE Search*(pat: ARRAY OF CHAR; VAR src(** in *): ARRAY OF CHAR; VAR pos(** in/out *): LONGINT);
+	PROCEDURE Search*(pat: ARRAY OF CHAR; VAR src(** in *): ARRAY OF CHAR; VAR pos(** in/out *): INTEGER);
 		CONST MaxPat = 128;
 		VAR
 			buf: ARRAY MaxPat OF CHAR;
-			len, i, srclen: LONGINT;
-		PROCEDURE Find(beg: LONGINT);
+			len, i, srclen: INTEGER;
+		PROCEDURE Find(beg: INTEGER);
 			VAR
-				i, j, b, e: LONGINT;
+				i, j, b, e: INTEGER;
 				ch: CHAR;
 				ref: ARRAY MaxPat OF CHAR;
 		BEGIN
@@ -296,14 +295,14 @@ MODULE Strings0;	(** portable *) (* ejz, *)
 	END Search;
 
 (** Search in src starting at pos for the next occurrence of pat. *)
-	PROCEDURE CAPSearch*(pat: ARRAY OF CHAR; VAR src(** in *): ARRAY OF CHAR; VAR pos(** in/out *): LONGINT);
+	PROCEDURE CAPSearch*(pat: ARRAY OF CHAR; VAR src(** in *): ARRAY OF CHAR; VAR pos(** in/out *): INTEGER);
 		CONST MaxPat = 128;
 		VAR
 			buf: ARRAY MaxPat OF CHAR;
-			len, i, srclen: LONGINT;
-		PROCEDURE Find(beg: LONGINT);
+			len, i, srclen: INTEGER;
+		PROCEDURE Find(beg: INTEGER);
 			VAR
-				i, j, b, e: LONGINT;
+				i, j, b, e: INTEGER;
 				ch: CHAR;
 				ref: ARRAY MaxPat OF CHAR;
 		BEGIN
@@ -357,8 +356,8 @@ MODULE Strings0;	(** portable *) (* ejz, *)
 	END CAPSearch;
 
 (** Convert a string into an integer. Leading white space characters are ignored. *)
-	PROCEDURE StrToInt*(VAR str: ARRAY OF CHAR; VAR val: LONGINT);
-		VAR i, d: LONGINT; ch: CHAR; neg: BOOLEAN;
+	PROCEDURE StrToInt*(VAR str: ARRAY OF CHAR; VAR val: INTEGER);
+		VAR i, d: INTEGER; ch: CHAR; neg: BOOLEAN;
 	BEGIN
 		i := 0; ch := str[0];
 		WHILE (ch # 0X) & (ch <= " ") DO
@@ -373,10 +372,10 @@ MODULE Strings0;	(** portable *) (* ejz, *)
 		WHILE (ch >= "0") & (ch <= "9") DO
 			d := ORD(ch)-ORD("0");
 			INC(i); ch := str[i];
-			IF val <= ((MAX(LONGINT)-d) DIV 10) THEN
+			IF val <= ((MAX(INTEGER)-d) DIV 10) THEN
 				val := 10*val+d
 			ELSIF neg & (val = 214748364) & (d = 8) & ((ch < "0") OR (ch > "9")) THEN
-				val := MIN(LONGINT); neg := FALSE
+				val := MIN(INTEGER); neg := FALSE
 			ELSE
 				HALT(99)
 			END
@@ -386,7 +385,7 @@ MODULE Strings0;	(** portable *) (* ejz, *)
 
 (** Convert the substring beginning at position i in str into an integer. Any leading whitespace characters are ignored.
 	After the conversion i pointes to the first character after the integer. *)
-	PROCEDURE StrToIntPos*(VAR str: ARRAY OF CHAR; VAR val: LONGINT; VAR i: INTEGER);
+	PROCEDURE StrToIntPos*(VAR str: ARRAY OF CHAR; VAR val: INTEGER; VAR i: INTEGER);
 		VAR noStr: ARRAY 16 OF CHAR;
 	BEGIN
 		WHILE (str[i] # 0X) & (str[i] <= " ") DO
@@ -407,12 +406,12 @@ MODULE Strings0;	(** portable *) (* ejz, *)
 	END StrToIntPos;
 
 (** Convert an integer into a string. *)
-	PROCEDURE IntToStr*(val: LONGINT; VAR str: ARRAY OF CHAR);
+	PROCEDURE IntToStr*(val: INTEGER; VAR str: ARRAY OF CHAR);
 		VAR
-			i, j: LONGINT;
-			digits: ARRAY 16 OF LONGINT;
+			i, j: INTEGER;
+			digits: ARRAY 16 OF INTEGER;
 	BEGIN
-		IF val = MIN(LONGINT) THEN
+		IF val = MIN(INTEGER) THEN
 			COPY("-2147483648", str);
 			RETURN
 		END;
@@ -431,65 +430,11 @@ MODULE Strings0;	(** portable *) (* ejz, *)
 		END;
 		str[j] := 0X
 	END IntToStr;
-PROCEDURE RealToStr*(x: LONGREAL; VAR s: ARRAY OF CHAR);
-VAR e, h, l, n, len: LONGINT; i, j, pos: INTEGER; z: LONGREAL; d: ARRAY 16 OF CHAR;
-	
-	PROCEDURE Wr(ch: CHAR);
-	BEGIN
-		IF ch = 0X THEN HALT(42) END;
-		IF pos < len THEN s[pos] := ch; INC(pos) END;
-	END Wr;
-	
-BEGIN
-	len := LEN(s)-1; pos := 0;
-	e:= Reals.ExpoL(x);
-	IF e = 2047 THEN
-		Wr("N"); Wr("a"); Wr("N")
-	ELSE
-		n := 14;
-		IF (x < 0) & (e # 0) THEN Wr("-"); x:= - x END;
-		IF e = 0 THEN h:= 0; l:= 0 (* no denormals *)
-    ELSE e:= (e - 1023) * 301029 DIV 1000000; (* ln(2)/ln(10) = 0.301029996 *)
-      z:= Reals.Ten(e+1);
-      IF x >= z THEN x:= x/z; INC(e) ELSE x:= x * Reals.Ten(-e) END;
-      IF x >= 10 THEN x:= x * Reals.Ten(-1) + 0.5D0 / Reals.Ten(n); INC(e)
-      ELSE x:= x + 0.5D0 / Reals.Ten(n);
-        IF x >= 10 THEN x:= x * Reals.Ten(-1); INC(e) END
-      END;
-      x:= x * Reals.Ten(7); h:= ENTIER(x); x:= (x-h) * Reals.Ten(8); l:= ENTIER(x)
-    END;
-		i := 15; WHILE i > 7 DO d[i]:= CHR(l MOD 10 + ORD("0")); l:= l DIV 10; DEC(i) END;
-		WHILE i >= 0 DO d[i]:= CHR(h MOD 10 + ORD("0")); h:= h DIV 10; DEC(i) END;
-		IF ABS(e) > 8 THEN (* scientific notation *)
-			j := 15; WHILE (j > 0) & (d[j] = "0") DO DEC(j) END;
-			Wr(d[0]); IF j # 0 THEN Wr(".") END; i := 1; WHILE i <= j DO Wr(d[i]); INC(i) END;
-			IF e < 0 THEN Wr("D"); Wr("-"); e:= - e ELSE Wr("D"); Wr("+") END;
-			Wr(CHR(e DIV 100 + ORD("0"))); e:= e MOD 100;
-			Wr(CHR(e DIV 10 + ORD("0"))); Wr(CHR(e MOD 10 + ORD("0")))
-		ELSE
-			IF e < 0 THEN (* leading zeros *)
-				j := (* !15*) 14; WHILE (j > 0) & (d[j] = "0") DO DEC(j) END;
-				Wr("0"); Wr("."); INC(e);
-				WHILE e < 0 DO Wr("0"); INC(e) END;
-				i := 0; WHILE i <= j DO Wr(d[i]); INC(i) END
-			ELSE
-				i := 0; WHILE (e >= 0) & (i < 16 ) DO Wr(d[i]); INC(i); DEC(e) END;
-				IF i < 16 THEN
-					Wr(".");
-					WHILE i < (*16*) 15 DO Wr(d[i]); INC(i); END;
-					WHILE s[pos - 1] = "0" DO DEC(pos) END;
-					IF s[pos - 1] = "." THEN DEC(pos) END;
-				END
-			END
-		END
-	END;
-	s[pos] := 0X
-END RealToStr;
 
 (** Convert a string into a boolean. "Yes", "True" and "On" are TRUE all other strings are FALSE.
 	Leading white space characters are ignored. *)
 	PROCEDURE StrToBool*(VAR str: ARRAY OF CHAR; VAR b: BOOLEAN);
-		VAR i: LONGINT;
+		VAR i: INTEGER;
 	BEGIN
 		i := 0;
 		WHILE (str[i] # 0X) & (str[i] <= " ") DO
@@ -558,7 +503,7 @@ END RealToStr;
 	END SetToStr;
 
 	PROCEDURE Init();
-		VAR i: LONGINT; 
+		VAR i: INTEGER; 
 	BEGIN
 	
 		FOR i := 0 TO 255 DO
@@ -661,6 +606,9 @@ END RealToStr;
 		CRLF[0] := CR; CRLF[1] := LF; CRLF[2] := 0X; CRLF[3] := 0X
 	END Init;
 
+PROCEDURE GcDebug(flags: ARRAY OF CHAR) IS "gc_debug";
+
 BEGIN
+        GcDebug("gcdlb");
 	Init()
 END Strings0.
