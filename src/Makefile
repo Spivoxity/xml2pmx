@@ -8,8 +8,12 @@ xml2pmx: $(OBJS)
 %.k: %.m
 	obc -c $< -o $@
 
+test: force
+	./xml2pmx Telemann.xml Telemann.pmx a 0
+	cmp Telemann.exp Telemann.pmx
+
 clean: force
-	rm *.k xml2pmx
+	rm -f *.k xml2pmx Telemann.pmx *.pmxprep
 
 force:
 
