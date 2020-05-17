@@ -162,7 +162,9 @@ TYPE
 VAR 
  lastbase : INTEGER; (* number of main note of a chord *)
    uptomeasure : LONGINT; (* global variable for reducing the number of measures *)
-	notes: POINTER TO ARRAY 27 OF ARRAY 3 OF ARRAY 400 OF ARRAY 64 OF NoteDesc;  keytotal : ARRAY 132 OF CHAR;
+	notes: POINTER TO ARRAY 27 OF ARRAY 3 OF ARRAY 400 OF
+          ARRAY 64 OF POINTER TO NoteDesc;
+        keytotal : ARRAY 132 OF CHAR;
 	unix: BOOLEAN;  outputcont : ARRAY 16 OF CHAR; outputset : SET;
 	voicemeasure: POINTER TO ARRAY 30 OF ARRAY 500 OF SET;  
 	voiceps: ARRAY 30 OF SET;  
@@ -1364,7 +1366,7 @@ END;
 							   (* remove print-object="no". 26.07.2019*)
 							  THEN (* CHANGE 11.Juli 2019: remove print-object = "no" notes *)
 						IF ~ (10 IN outputset) OR ( notes[ps, voice, measure, note].probj = TRUE ) THEN (* remove notes with print_obj = "no"  04.05.2020 *)
-							WriteNote2PMX( W, notes[ps, voice, measure, note], ps, voice, voicefrom, measure, note, Dtext, 
+							WriteNote2PMX( W, notes[ps, voice, measure, note]^, ps, voice, voicefrom, measure, note, Dtext, 
 														 Rtext, istuplet );  
 							b.loesch( restbefore );  b.loesch( restafter );  
 
@@ -1680,7 +1682,9 @@ END;
 		ps, defaultx, long : LONGINT;  
 	
 	BEGIN 
-		nties := 0;  ps := linstaff( nostaves, part, staff );  notes[ps, voice, measure, note].voicetime := n.voicetime;  
+		nties := 0;  ps := linstaff( nostaves, part, staff );
+                NEW(notes[ps, voice, measure, note]);
+                notes[ps, voice, measure, note].voicetime := n.voicetime;  
 		notes[ps, voice, measure, note].cue := n.cue;
 		notes[ps, voice, measure, note].from := n.from;  notes[ps, voice, measure, note].to := n.to;  
 		(*	Out.Ln(); Out.String("NotesProp voice + voice : ");
