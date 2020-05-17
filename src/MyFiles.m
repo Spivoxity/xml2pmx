@@ -40,11 +40,14 @@ BEGIN
   RETURN Open(name, "r")
 END Old;
 
+(* End of file behaviour: EOF is initially false; trying to read beyond the
+   end of the file returns a CHR(0) and sets the EOF flag. *)
+
 PROCEDURE Set*(VAR r: Rider; f: File; off: INTEGER);
 BEGIN
   Files.Seek(f.native, off, Files.SeekSet);
   r.base := f;
-  r.eof := Files.Eof(f.native);
+  r.eof := FALSE;
 
   stamp := stamp+1;
   r.id := stamp;
@@ -56,8 +59,11 @@ PROCEDURE Read*(VAR r: Rider; VAR ch: CHAR);
 BEGIN
   f := r.base;
   ASSERT(f.current = r.id);
-  Files.ReadChar(f.native, ch);
-  r.eof := Files.Eof(f.native)
+  IF Files.Eof(f.native) THEN
+    ch := CHR(0); r.eof := TRUE
+  ELSE
+    Files.ReadChar(f.native, ch)
+  END
 END Read;
 
 PROCEDURE Write*(VAR r: Rider; ch: CHAR);
@@ -78,7 +84,11 @@ END WriteBytes;
 PROCEDURE WriteLongReal*(VAR r: Rider; x: LONGREAL);
 BEGIN
   ASSERT(r.base.current = r.id);
-  Files.WriteLongReal(r.base.native, x)
+  IF x = 0.0 THEN
+    Files.WriteString(r.base.native, "0")
+  ELSE
+    Files.WriteLongReal(r.base.native, x)
+  END
 END WriteLongReal;
 
 PROCEDURE Close*(f: File);
