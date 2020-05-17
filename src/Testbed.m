@@ -45,7 +45,7 @@ Recently solved 19. 05. 2017
 
 (*   IMPORT  Strings, Files, Texts, Oberon, b, Complete, Fifo, Out;  (*   Import for Oberon Version *) *)
   (* IMPORT Kernel32, Strings, Files, Out := WCout, b, Complete, Fifo ; *)  (* Import for Windows-Exe Version *)
- 	 IMPORT Args, Files := MyFiles, Strings:=Strings0, Out, b, Complete, Fifo;   (* Import for Linux-Version *)
+ 	 IMPORT Args, Files := MyFiles, Strings:=Strings0, Out, b, Complete;   (* Import for Linux-Version *)
 
 TYPE LONGINT = INTEGER;
 
@@ -160,9 +160,8 @@ TYPE
 			END;  
 
 VAR 
- lastbase : INTEGER; (* number of main note of a chord *) zaehler : LONGINT;
-   uptomeasure, countmeasureprint : LONGINT; (* global variable for reducing the number of measures *)
-	copyclef: ARRAY 27 OF CopyClef;  
+ lastbase : INTEGER; (* number of main note of a chord *)
+   uptomeasure : LONGINT; (* global variable for reducing the number of measures *)
 	notes: POINTER TO ARRAY 27 OF ARRAY 3 OF ARRAY 400 OF ARRAY 64 OF NoteDesc;  keytotal : ARRAY 132 OF CHAR;
 	unix: BOOLEAN;  outputcont : ARRAY 16 OF CHAR; outputset : SET;
 	voicemeasure: POINTER TO ARRAY 30 OF ARRAY 500 OF SET;  
@@ -171,7 +170,6 @@ VAR
 	vmapps: ARRAY 30 OF ARRAY 5 OF LONGINT;  
 	minvoice, maxvoice: POINTER TO ARRAY 27 OF ARRAY 500 OF LONGINT;  
 	vmap: ARRAY 30 OF ARRAY 500 OF ARRAY 5 OF LONGINT;  
-	notetypei : ARRAY 10 OF INTEGER; (* inverse of notetype index 0 => 64 *)
 	
 	clefspec, lastclef: ARRAY 27 OF CHAR;   (*  special clef and valid clef in the actual measure *)
 	
@@ -180,22 +178,17 @@ VAR
 
 	(* controls#  voices within a staff and measure*)
 	voicecount: ARRAY 30 OF LONGINT;   (* counts different voices within a staff *) countnote, countattr, countdir : LONGINT;
-	 nstr : ARRAY 8 OF LONGINT;   (* global for number of verses in a liedtext.*)
-	text: ARRAY 8 OF ARRAY 6  OF ARRAY 1024 OF CHAR;   (* texts for at most 6 verses and 8 voices choir; length limited to  1023 Chars *)
 	ingrace2pmx: LONGINT;  
-	comline: ARRAY 255 OF CHAR;  
 	in, out: ARRAY 128 OF CHAR;  
 	lastto, lastfrom: INTEGER;   (* global variable for time progress in measure *)
 	(* clefchangemeasure: ARRAY 27 OF ARRAY 3 OF ARRAY 500 OF ARRAY 4 OF CHAR;  *)
 	pmxdur: ARRAY 8 OF CHAR;  
-	lastnote, countclef: LONGINT;   (* global variable for position of last note *)
-	notetypexml: ARRAY 10 OF ARRAY 8 OF CHAR;  
-	notetypepmx: ARRAY 10 OF CHAR;  
+	lastnote: LONGINT;   (* global variable for position of last note *)
 	fi, fo: Files.File;  ri: Files.Rider;  
 	(* VAR notes : notestype; *)
 	voicetime: ARRAY 27 OF ARRAY 4 OF INTEGER;   (* progress  of notes duration in part,staff,voice, actual measure *)
 	lasttype: ARRAY 32 OF CHAR;   (* beam type of preceding note *)
-	laststaff, maxarp: LONGINT;  
+	laststaff: LONGINT;  
 	closebeam: ARRAY 8 OF CHAR;   (* staff of preceding note for beam calculation *)
 	(* q: FIFO; *)  (* global variable for sorted notes queue *)
 	maxdir, i, j, part, staff, voice, measure, note, count, maxpart, maxmeasure, itags, maxgrace, controlpart, 
@@ -252,6 +245,7 @@ VAR
 	(* Fills incomplete measures with blind rests, as needed *)
 	VAR note, part, staff, lastnote: LONGINT;  delta, lastto: INTEGER;  (* global "lastnote" removed 29.11.2016 *)
 	BEGIN 
+                lastto := 0; lastnote := 0;
 		part := partstaff[ps, 0];  staff := partstaff[ps, 1];  
 		
 		
@@ -336,12 +330,6 @@ VAR
 		(*	Out.String( XMLdyn );  Out.Char( "|" );  Out.String( out );   *)
 	END PMXdyn;  
 
-	PROCEDURE WriteInt( VAR W: Files.Rider;  i: INTEGER );  
-	VAR si: ARRAY 10 OF CHAR;  
-	BEGIN 
-		Strings.IntToStr( i, si );  Files.Write( W, BLANK );  WriteString( W, si );  
-	END WriteInt;  
-
 	PROCEDURE WriteLInt( VAR W: Files.Rider;  i: LONGINT );  
 	VAR si: ARRAY 10 OF CHAR;  
 	BEGIN 
@@ -398,7 +386,7 @@ Out.Ln();	Out.String("Storage for verses : "); Out.String(sout);
 		Files.Close( f );  Files.Register( f );  
 	END writetext;  *)
 	PROCEDURE SetOutput*;
-	VAR c : CHAR; j,i: LONGINT;
+	VAR c : CHAR; i: LONGINT;
 	PROCEDURE OutSet(s : SET);	VAR i : LONGINT;
 	BEGIN
 	i := 0; WHILE i < 32 DO IF (i IN s) THEN Out.Int(i,5); Out.Char("|") END; INC(i); END;	
@@ -472,33 +460,6 @@ Out.Ln(); END;
 		END
 	END commandU; 
 	
-	
-PROCEDURE Stripfilename(sin : ARRAY OF CHAR; VAR sout : ARRAY OF CHAR);
-(* Version Eduard + ":" Findet den ersten "/" oder " \" von hinten.  und speichert den Pfad in sout*)
-VAR i, j: LONGINT;
-BEGIN i := Strings.Length(sin);
-REPEAT DEC(i) UNTIL (i < 0) OR (sin[i] = "/") OR (sin[i] = "\") OR (sin[i] = ":");
-j := 0; WHILE (j <= i) & (j < LEN(sout) - 1) DO sout[j] := sin[j]; INC(j) END;
-sout[j] := 0X;
-Out.Ln(); Out.String('sin '); Out.String(sin); Out.String(' => '); Out.String(sout); Out.String(' sout')
-END Stripfilename; 
-
-
-
-	PROCEDURE Filenames(isEXE : BOOLEAN; VAR comline, infilename, outfilename, outputcontrol : ARRAY OF CHAR );  
-	VAR pos: LONGINT;  output : ARRAY 64 OF CHAR;
-	BEGIN 
-		pos := 0;  IF ( isEXE ) THEN WHILE  (comline[pos] # BLANK) DO INC(pos); END; END;
-	  (* 	Beim Exe wird der Befehl …bersprungen. *)
-		b.FindToken( comline, infilename, pos ); Out.Ln();Out.String( infilename );  Out.Ln();  
-		b.FindToken( comline, outfilename, pos );  Out.String( outfilename );  Out.Ln();
-		Out.String("outputcontrol : ");
-		b.FindToken( comline, output, pos ); Strings.Upper(output,outputcontrol);  Out.String( outputcontrol );  SetOutput;
-       b.voutput := (2 IN outputset); (* Option "V" : voices output for part staff, measure *)
-       b.FindToken( comline, output, pos ); Strings.StrToInt(output,uptomeasure);
-       Out.Ln(); Out.String("upper limit of measures : "); Out.Int(uptomeasure,5);
-	END Filenames;  
-
 	PROCEDURE Voicing( q: b.FIFO);  
 	(* calculates an array of Sets vontaining the voices for part, staff and measure. *)
 	VAR n: b.Tag;  
@@ -524,7 +485,7 @@ END Stripfilename;
 	END DeleteTag;
 	
 PROCEDURE DeleteTS (tag : ARRAY OF CHAR); (* deletes all ties or slurs according to "tag" *)
-	VAR n, lasttie, m : b.Tag; lastntype, ntype : ARRAY 32 OF CHAR; count : LONGINT;
+	VAR n : b.Tag; count : LONGINT;
 	BEGIN
 		n:= b.q.first; count := 0;
 		WHILE n.next # NIL DO 
@@ -698,6 +659,7 @@ PROCEDURE InOut( infilename, outfilename: ARRAY OF CHAR );
 		lastdirtype: CHAR;  
 		posnote: ARRAY 64 OF INTEGER;  
 	BEGIN 
+                lastnote := 0;
 		idir := 1;  
 		WHILE idir <= maxdir DO 
 			j := 1;  
@@ -791,7 +753,7 @@ PROCEDURE InOut( infilename, outfilename: ARRAY OF CHAR );
 	PROCEDURE PMXDuration( tuplettype,tremolotype : ARRAY OF CHAR;  div, xmldur: INTEGER;  actual, normal: INTEGER;  
 											 VAR pmxdur: ARRAY OF CHAR;  istuplet: BOOLEAN;  type: ARRAY OF CHAR );  
 	(* Calculates the pmx-duration of a note (0,2,4,8,1,3,6) or rest from the XML-duration. Takes into account one dot and two dots		*)
-	VAR invpmxdur: LONGINT;  double: CHAR;  tupletdur,noteduration,  i : INTEGER;
+	VAR double: CHAR;  tupletdur,noteduration,  i : INTEGER;
 	
 	
 	BEGIN 
@@ -870,6 +832,7 @@ END PMXDuration;
 	PROCEDURE DelTag*;  
 	VAR nlast, n, m: b.Tag;  
 	BEGIN 
+        	nlast := NIL;
 		n := b.q.first;  
 		WHILE n.next # NIL DO 
 			IF (n.next.tagname = notetag) & (n.next.probj = "n") THEN 
@@ -908,10 +871,10 @@ END PMXDuration;
 												  ps, voice, voicefrom, measure, note: LONGINT;  VAR Dtext, Rtext: ARRAY OF CHAR;  
 												  VAR istuplet: BOOLEAN );  
 	(* Writes the data for one note or rest to Files.Rider "W"; called by PROC. W ritePMX; *)
-	VAR pmxdur: ARRAY 16 OF CHAR;  sactual : ARRAY 4 OF CHAR; Wpos : LONGINT;
+	VAR pmxdur: ARRAY 16 OF CHAR;  sactual : ARRAY 4 OF CHAR;
 		pmxnote: ARRAY 64 OF CHAR;  blindrest : ARRAY 32 OF CHAR;
-		tremolo: ARRAY 16 OF CHAR;  noteno : INTEGER; maxinote : LONGINT;
-		octave: CHAR;  stemchar: CHAR;  maxnotelastmeasure, firstnotenextmeasure : LONGINT;
+		tremolo: ARRAY 16 OF CHAR;  maxinote : LONGINT;
+		octave: CHAR;  stemchar: CHAR;  maxnotelastmeasure : LONGINT;
 	
 	BEGIN 
 
@@ -1239,10 +1202,9 @@ END;
 
 	PROCEDURE WritePMX ( VAR W: Files.Rider );  
 	(* Creates and stores the notes part of the PMX file (starting with "% Bar 1"). after the Control Data *)
-	VAR voice, staff, voicefrom, voiceto, nnotes, notefrom, noteto, pos2slash, nnvoice1 : LONGINT; concertkey : ARRAY 10 OF CHAR; 
+	VAR voice, staff, voicefrom, voiceto, nnotes, notefrom, noteto : LONGINT; concertkey : ARRAY 10 OF CHAR; 
 		Dtext, Rtext: ARRAY 128 OF CHAR;  
 		keychange, dummy: ARRAY 32 OF CHAR; keychanged : BOOLEAN; 
-		file : Files.File; filename : ARRAY 64 OF CHAR;
 		
 		blindmeterchange: ARRAY 16 OF CHAR;  
 		istuplet: BOOLEAN;  minmeasure: LONGINT;  ipickup: INTEGER;  
@@ -1250,6 +1212,7 @@ END;
 		restbefore, restafter: ARRAY 16 OF CHAR;  
 	
 	BEGIN 
+		keychanged := FALSE;
 		ipickup := 0;  
 		IF attributes[1].pickup > 0 THEN ipickup := 1;  END;  
 		(* Write transposition string s *)
@@ -1283,7 +1246,7 @@ END;
 				keychanged := TRUE;  
 			ELSIF measure > 1 THEN	i := 1 ; 
 							REPEAT  
-			 					 	 	 keychanged := (measures[measure].keys[i] # measures[measure].keys[maxpart] ) &  (* €nderung2.2.2017 *)
+			 					 	 	 keychanged := (measures[measure].keys[i] # measures[measure].keys[maxpart] ) &  (* Aenderung2.2.2017 *)
 					                         (measures[measure].keys[i] # measures[measure - 1].keys[i]);
 															INC(i) ;  
 				UNTIL ( i = maxpart ) OR keychanged  ; 
@@ -1518,6 +1481,7 @@ END;
 	VAR c, j: CHAR;  m: b.Tag;  
 		type, number: ARRAY 32 OF CHAR;  
 	BEGIN 
+		c := "?";
 		b.loesch( pmxbeam );  COPY( n.between, type );  b.FindAtt( n, "number", number );  b.loesch( closebeam );  j := 0X;  
 		IF (number = "1") THEN  (* 1*)
 			COPY( BLANK, pmxbeam );  
@@ -1638,7 +1602,6 @@ END;
 	
 	VAR nograce: LONGINT;  isgrace: BOOLEAN;  
 		slash, type, stem: ARRAY 32 OF CHAR;  
-		cautionary, editorial: ARRAY 16 OF CHAR;  
 		snograce, str: ARRAY 4 OF CHAR;  
 	BEGIN 
 		b.loesch( res );  
@@ -1710,11 +1673,11 @@ END;
 	PROCEDURE NotesProp( part, staff, voice, measure: LONGINT;  VAR note: LONGINT;  VAR n: b.Tag );  
 	(* stores notes information in an array with indices [ps,voice,measure,note] for later use in the generation measure 
 		by measure; "part" and "staff" are combined in one index "ps". *)
-	VAR pmxslur, pmxtied, pmxbeam, type, pmxrepeat, pmxgrace, cautionary, editorial: ARRAY 32 OF CHAR;  
+	VAR pmxslur, pmxtied, pmxbeam, type, pmxrepeat, pmxgrace: ARRAY 32 OF CHAR;  
 		number, ntype, mtype: ARRAY 32 OF CHAR;  
 		m: b.Tag;  
 		defaultxs: ARRAY 6 OF CHAR;  (* openslur : ARRAY 1000 OF OpenSlurDesc; *)
-		ps, defaultx, long, lastnotethismeasure,firstnotenextmeasure : LONGINT;  
+		ps, defaultx, long : LONGINT;  
 	
 	BEGIN 
 		nties := 0;  ps := linstaff( nostaves, part, staff );  notes[ps, voice, measure, note].voicetime := n.voicetime;  
@@ -2086,7 +2049,7 @@ END;
 		PROCEDURE Enrich( q: b.FIFO );  
 	(* 1. Read voice and staff; store as notes attribute;
 	    2. Calculates maxnote, minvoice,maxvoice,minVoice,maxVoice; *)
-	VAR n, m: b.Tag;  notevoice, notestaff : LONGINT;  duration, backup, lastarpeggio, B: LONGINT;   
+	VAR n, m: b.Tag;  notevoice, notestaff : LONGINT;  duration, backup, B: LONGINT;   
 	
 	BEGIN 
 		
@@ -2188,7 +2151,6 @@ END;
 	END CopyClefVoice;   *)
 	 PROCEDURE Accidentals(n : b.Tag; ps, voice, measure, note : LONGINT);			
 	VAR 
-		slash, type, stem: ARRAY 32 OF CHAR;  
 		cautionary, editorial, parentheses 	: ARRAY 16 OF CHAR;  
 	BEGIN			
 			IF (n.tagname) = accidentaltag THEN  (* 5 *)
@@ -2222,8 +2184,9 @@ END;
 
 	PROCEDURE EnumerateTags*;  
 	(* runs through the list of tags and calls NotesProp and MeasuresProp and lists the tag-data in System.Log *)
-	VAR n: b.Tag;  lastnote, voice01: LONGINT;  
+	VAR n: b.Tag; voice01: LONGINT;  
 	BEGIN 
+        	voice01 := 0;
 		n := b.q.first; 
 		Out.Ln();  Out.String( "EnumerateTags : " );  
 		Out.String( "part, staff, voice, measure, note, tag, names/values, between" );  Out.Ln();
@@ -2483,6 +2446,8 @@ INC
 		chord: CHAR;  noteduration: LONGINT;  
 		durationsv: ARRAY 25 OF ARRAY 10 OF LONGINT;  
 	BEGIN 
+        	chord := "?";
+		isnote := FALSE;
 		n := q.first;   Out.Ln();  Out.String( " PROCEDURE Pickup : " );  
 		WHILE (n.next # NIL ) & (n.tagname # measuretag) DO n := n.next;  END;   (* first measure of first part found *)
 		 b.OutTag( n, TRUE );    COPY( n.endtag, endtag );  duration := 0;  
@@ -2606,8 +2571,9 @@ INC
 
 	PROCEDURE progress( q: b.FIFO );  
 	(* Calculates the horizontal position of each note in a measure and stores it in the tag.  *)
-	VAR n: b.Tag;  ps: LONGINT;   beats, beattype : INTEGER;
+	VAR n: b.Tag;  ps: LONGINT;
 	BEGIN 
+		ps := 0;
 		n := q.first;  
 		
 		WHILE (n.next # NIL ) DO (* 1 *)
@@ -2616,7 +2582,7 @@ INC
 				part := n.part;  staff := n.staff;  measure := n.measure;  ps := StaffInd( nostaves, part, staff );  
 				voice := VOICE01( ps, n.voice, n.measure );  
 				
-				IF (n.chord # "c") & ( n.grace = 0 ) THEN  (* 4 *) (* war fr…her "&" statt "OR" *)
+				IF (n.chord # "c") & ( n.grace = 0 ) THEN  (* 4 *) (* war fruher "&" statt "OR" *)
 				(* INC(measures[measure].dur,n.duration); Out.Int(n.duration,5); *)
 					INC( voicetime[ps, voice], n.duration );  n.voicetime := voicetime[ps, voice];  
 					measures[measure].voicetime[ps, voice] := n.voicetime;  n.from := lastto + 1 - n.backup;  
@@ -2869,7 +2835,7 @@ INC
 		
 		
 	BEGIN 
-		
+		note := 0; voice := 0;		
 		attnum := 0;  dirnum := 0;  part := 0;  measure := 0;  
 		
 		(******************** Read XML-Information ****************************)
@@ -2880,7 +2846,7 @@ INC
 		b.ReadUntilTx( R, NL, dummy );  
 		
 		WHILE ~R.eof (* &  ( itags < 10) *) DO  (* Loop over tags *)
-			b.ReadRecn( R, rec, length );   (*  Files.Read(R,c);  Versuch zur L„sung eines Problems *)
+			b.ReadRecn( R, rec, length );   (*  Files.Read(R,c);  Versuch zur Loesung eines Problems *)
 			
 			(*	Out.Ln(); Out.String("nach ReadRecn : ");  Out.Int(itags,5); Out.Char("|"); Out.String(rec); Out.Char("|");  *)
 			IF length = 0 THEN Out.Ln(); Out.String("empty record ");  

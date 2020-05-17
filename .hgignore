@@ -1,0 +1,9 @@
+syntax: glob
+src/Complete.k
+src/Fifo.k
+src/MyFiles.k
+src/Strings0.k
+src/Testbed.k
+src/b.k
+src/xml2pmx
+import

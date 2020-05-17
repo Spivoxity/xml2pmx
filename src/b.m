@@ -36,7 +36,7 @@ TYPE
 			END;  
 
 			
-VAR q* : FIFO; maxtag : LONGINT; nfirst : Node; voutput* : BOOLEAN; nostaves* : LONGINT; unix* : BOOLEAN;
+VAR q* : FIFO; voutput* : BOOLEAN; nostaves* : LONGINT; unix* : BOOLEAN;
 sout : ARRAY 64 OF CHAR; (* target file path and directory *)
 tieunusdnum*: ARRAY 27 OF ARRAY 3 OF SET;
 tieq: ARRAY 27 OF ARRAY 2 OF Fifo.FIFO; 
@@ -49,8 +49,9 @@ PROCEDURE slur2PMX* ( n: Tag;  VAR pmxslur: ARRAY OF CHAR ; outputset : SET);
 	(* Translates a beginning or ending slur from XML to PMX. *)
 	
 	VAR c, cs : CHAR;  
-		type, number, placement: ARRAY 32 OF CHAR;  inumber : LONGINT; res : ARRAY 4 OF CHAR;
+		type, number, placement: ARRAY 32 OF CHAR;  inumber : LONGINT;
 	BEGIN 
+                c := "?";
 		loesch( pmxslur );  FindAtt( n, "type", type );  FindAtt( n, "number", number );  
 		IF ( number # "" ) THEN
 				Strings.StrToInt(number, inumber);
@@ -58,7 +59,7 @@ PROCEDURE slur2PMX* ( n: Tag;  VAR pmxslur: ARRAY OF CHAR ; outputset : SET);
 				ELSE cs := "A"; 
 		END;
 		FindAtt( n, "placement", placement );  
-		IF (type # "continue") THEN (* gibt es das …berhapt? *)
+IF (type # "continue") THEN (* gibt es das Uberhaupt? *)
 
 			COPY( BLANK, pmxslur );  
 			IF (type = "start") THEN c := "(";  
@@ -196,7 +197,7 @@ Out.Ln();	Out.String("Storage for verses : "); Out.String(sout);
 	(* Command to list the different tags after calling the comman "Testbed.AalyzeXML" *)
 	VAR n: Tag;  first, st: Node;  
 	BEGIN 
-		
+		first := NIL;
 		n := q.first;  
 		WHILE n # NIL DO NEW( st );  COPY( n.tagname, st.key );  InsertRanked( first, st );  n := n.next;  END;  
 		st := first;  Out.Ln(); Out.String("===============================================");
@@ -455,7 +456,7 @@ RETURN imin;
 END 
 MinDist;
 PROCEDURE testMinDist*;
-VAR pos : ARRAY 5 OF INTEGER; x : INTEGER;
+VAR pos : ARRAY 5 OF INTEGER;
 	
 BEGIN
 pos[0] := 57;
@@ -496,22 +497,6 @@ PROCEDURE pmxTremolo* (pitchnote : CHAR; pitchoctave : INTEGER; stem, clef : CHA
 	END pmxTremolo;
 	
 	
-	PROCEDURE ReadIntF(VAR W : Files.Rider; digits : LONGINT) : LONGINT;
-(* Formatted read of LONGINT from file *)
-VAR i : LONGINT; ints : ARRAY 16 OF CHAR;
-BEGIN
-loesch(ints);
-i := 0; WHILE i < digits DO Files.Read(W,ints[i]); INC(i) END;
-ints[i] := 0X; Strings.StrToInt(ints,i); RETURN i;
-END ReadIntF;
-PROCEDURE ReadStringF(VAR W : Files.Rider; digits : LONGINT; VAR s : ARRAY OF CHAR);
-(* Formatted read of STRING with length "digits"  from file *)
-VAR i : LONGINT; 
-BEGIN
-loesch(s);
-i := 0; WHILE i < digits DO Files.Read(W,s[i]); INC(i) END;
-s[i] := 0X;
-END ReadStringF;
 PROCEDURE ReadStringUntil*(VAR W : Files.Rider; split : CHAR; VAR s : ARRAY OF CHAR);
 (* Formatted read of STRING until "split" Character  from file *)
 VAR i : LONGINT; c : CHAR;
@@ -580,7 +565,7 @@ END FindToken;
 	END strbetween;  
 	PROCEDURE Copywo*( VAR fin, fout: Files.File );  
 	(* Copies a File and eliminates multiple BLANKs. *)
-	VAR ch, first: CHAR;  rin, rout: Files.Rider;  column, line: LONGINT;  
+	VAR ch: CHAR;  rin, rout: Files.Rider;  column: LONGINT;  
 	BEGIN 
 		Files.Set( rin, fin, 0 );  Files.Set( rout, fout, 0 );  column := 0;  Files.Read( rin, ch );  
 		WHILE ~rin.eof DO 
@@ -1055,10 +1040,6 @@ END; IF (keytotal = "K") THEN keytotal[0] := 0X END;
 						Strings.Append( keystr, dummy ); 
 	
 	END Makekeystr; 
- 
-
-
-	
 
   BEGIN
   END b.

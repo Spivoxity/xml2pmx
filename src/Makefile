@@ -6,7 +6,7 @@ xml2pmx: $(OBJS)
 	obc $^ -o $@ 
 
 %.k: %.m
-	obc -c -w $< -o $@
+	obc -c $< -o $@
 
 clean: force
 	rm *.k xml2pmx
