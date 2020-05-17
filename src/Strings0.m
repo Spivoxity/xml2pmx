@@ -606,9 +606,6 @@ MODULE Strings0;	(** portable *) (* ejz, *)
 		CRLF[0] := CR; CRLF[1] := LF; CRLF[2] := 0X; CRLF[3] := 0X
 	END Init;
 
-PROCEDURE GcDebug(flags: ARRAY OF CHAR) IS "gc_debug";
-
 BEGIN
-        GcDebug("gcdlb");
 	Init()
 END Strings0.
