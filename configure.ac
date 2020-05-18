@@ -1,5 +1,5 @@
 AC_INIT(xml2pmx, 0.1, bob@nowhere.net)
-AC_CONFIG_SRCDIR(src/obx.h)
+AC_CONFIG_SRCDIR(runtime/obx.h)
 AC_CONFIG_AUX_DIR(scripts)
 AC_CONFIG_HEADERS(platform.h)
 AC_DEFINE_UNQUOTED(PACKAGE_TRACKER, "<tracker>", [Bug tracker location])
