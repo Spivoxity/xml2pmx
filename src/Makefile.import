@@ -5,13 +5,12 @@ INTERP = action.c dynlink.c exec.h gc.c interp.c keiko.h \
 
 PRIMS = Args.c Builtin.c Files.c
 
-SOURCE = $(INTERP) $(PRIMS) config.h
+SOURCE = $(INTERP) $(PRIMS)
 
 import: $(SOURCE)
 
 $(INTERP): %: $(OBCDIR)/runtime/%; cp $< $@
 $(PRIMS): %: $(OBCDIR)/lib/%; cp $< $@
-config.h: $(OBCDIR)/config.h; cp $< $@
 
 pristine: force
 	rm -f $(SOURCE)

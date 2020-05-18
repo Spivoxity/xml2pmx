@@ -11,7 +11,11 @@ Also binary bytecode for the program
 
      xml2pmx.x
 
-C source for wrapper, invoked as xml2pmx.  Edit the main program here
+This bytecode is *concatenated* with the bytecode interpreter to make
+an executable program: this avoids the problem of configuring one half
+of the program to find the other at runtime.
+
+C source for a wrapper, invoked as xml2pmx.  Edit the main program here
 to implement --help, etc.
 
     wrapper.c
@@ -19,12 +23,9 @@ to implement --help, etc.
 And C source for the bytecode interpreter
 
     action.c
-    Args.c
-    Builtin.c
     config.h
     dynlink.c
     exec.h
-    Files.c
     gc.c
     interp.c
     keiko.h
@@ -35,18 +36,12 @@ And C source for the bytecode interpreter
     primtab.h
     support.c
     xmain.c
+    Args.c
+    Builtin.c
+    Files.c
 
 The bytecode interpreter is from release 3.1.0 of OBC, and rebuilding
 of the bytecode file, if necessary, must be done with the same release
 -- bytecode is not portable between releases because the opcodes
 change.  Alternatively, update the source files here from a later
 release.
-
-TODO: configuration process for multiple platforms.  The setup in
-config.h is conservative and mostly suits most platforms -- I've
-avoided dynamic libraries, FFI, etc.  The main point of difference
-will be the storage allocator, which must find storage in the bottom
-4GB of the address space on a 64-bit host.  Solutions for 64 bit
-Linux, Windows and Mac are included.  BSD should work with MAP_32BIT also,
-but I haven't tested it.
-

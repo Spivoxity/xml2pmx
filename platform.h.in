@@ -1,0 +1,46 @@
+/* platform.h.in.  Generated from configure.ac by autoheader.  */
+
+/* Define to enable hacks for FreeBSD */
+#undef FREEBSD
+
+/* Define if mmap available */
+#undef HAVE_MMAP
+
+/* Define if sigprocmask available */
+#undef HAVE_SIGPROCMASK
+
+/* Define for Linux */
+#undef LINUX
+
+/* Define for 64-bit runtime with 32-bit pointers */
+#undef M64X32
+
+/* Define to enable hacks for MacOS X */
+#undef MACOS
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Bug tracker location */
+#undef PACKAGE_TRACKER
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
+
+/* Define if unaligned loads and stores work */
+#undef UNALIGNED_MEM
+
+/* Define to enable hacks for Windows */
+#undef WINDOWS

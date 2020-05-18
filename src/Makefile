@@ -1,5 +1,9 @@
 all: xml2pmx
 
+xml2pmx: myobx xml2pmx.x
+	cat $^ >$@
+	chmod +x $@
+
 # BYTECODE
 
 update: xml2pmx.x 
@@ -22,13 +26,13 @@ interp.o: action.c
 
 xmain.o: CFLAGS += -DREVID=\"xml2pmx\" -Dmain=xmain
 
-xml2pmx: $(OBX)
-	gcc $(CFLAGS) $^ -o $@
+myobx: $(OBX)
+	gcc $(CFLAGS) -s $^ -o $@
 
 %.o: %.c
 	gcc $(CFLAGS) -c $< -o $@
 
-CFLAGS = -O2 -fno-strict-aliasing
+CFLAGS = -O2 -fno-strict-aliasing -I ..
 
 # IMPORT
 
@@ -54,4 +58,4 @@ b.k: Strings0.k Fifo.k MyFiles.k
 Complete.k: Strings0.k MyFiles.k
 Testbed.k: Strings0.k b.k Complete.k MyFiles.k
 
-$(OBX): config.h exec.h keiko.h obcommon.h obx.h primtab.h
+$(OBX): config.h exec.h keiko.h obcommon.h obx.h primtab.h ../platform.h
