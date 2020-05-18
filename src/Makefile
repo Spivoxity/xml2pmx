@@ -5,7 +5,7 @@ all:
 # Only recompile the program (using installed obc) on 'make update'
 update: xml2pmx.x 
 
-OBJS = MyFiles.k Strings0.k Fifo.k b.k Complete.k Testbed.k
+OBJS = MyFiles.k Strings1.k Fifo.k b.k Complete.k Testbed.k
 
 xml2pmx.x: $(OBJS)
 	obc $^ -o $@ 
@@ -25,6 +25,6 @@ force:
 
 ###
 
-b.k: Strings0.k Fifo.k MyFiles.k
-Complete.k: Strings0.k MyFiles.k
-Testbed.k: Strings0.k b.k Complete.k MyFiles.k
+b.k: Strings1.k Fifo.k MyFiles.k
+Complete.k: Strings1.k MyFiles.k
+Testbed.k: Strings1.k b.k Complete.k MyFiles.k

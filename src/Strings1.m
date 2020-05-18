@@ -1,4 +1,4 @@
-MODULE Strings0;	(** portable *) (* ejz, *)
+MODULE Strings1;	(** portable *) (* ejz, *)
 
 TYPE LONGINT = INTEGER;
 
@@ -400,5 +400,5 @@ TYPE LONGINT = INTEGER;
 
 BEGIN
 	Init()
-END Strings0.
+END Strings1.
 

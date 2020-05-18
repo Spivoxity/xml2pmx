@@ -1,6 +1,6 @@
 MODULE b;
 
-IMPORT Files := MyFiles, Strings := Strings0, Fifo,  Out; 
+IMPORT Files := MyFiles, Strings := Strings1, Fifo,  Out; 
 
 TYPE LONGINT = INTEGER;
 	

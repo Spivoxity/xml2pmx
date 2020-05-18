@@ -45,7 +45,7 @@ Recently solved 19. 05. 2017
 
 (*   IMPORT  Strings, Files, Texts, Oberon, b, Complete, Fifo, Out;  (*   Import for Oberon Version *) *)
   (* IMPORT Kernel32, Strings, Files, Out := WCout, b, Complete, Fifo ; *)  (* Import for Windows-Exe Version *)
- 	 IMPORT Args, Files := MyFiles, Strings:=Strings0, Out, b, Complete;   (* Import for Linux-Version *)
+ 	 IMPORT Args, Files := MyFiles, Strings:=Strings1, Out, b, Complete;   (* Import for Linux-Version *)
 
 TYPE LONGINT = INTEGER;
 

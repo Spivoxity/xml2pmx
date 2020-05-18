@@ -1,5 +1,5 @@
 MODULE Complete;
-IMPORT Strings := Strings0,  Out;
+IMPORT Strings := Strings1,  Out;
 
 TYPE LONGINT = INTEGER;
 
