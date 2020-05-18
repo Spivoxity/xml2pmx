@@ -9,3 +9,15 @@ src/xml2pmx
 import
 src/Telemann.pmx
 src/Telemann.pmxprep
+src/Args.o
+src/Builtin.o
+src/dynlink.o
+src/Files.o
+src/gc.o
+src/interp.o
+src/loader.o
+src/primtab.o
+src/support.o
+src/wrapper.o
+src/xmain.o
+src/obx

@@ -1,0 +1,19 @@
+OBCDIR = ~/src/obc-3.1
+
+INTERP = action.c dynlink.c exec.h gc.c interp.c keiko.h \
+	loader.c obcommon.h obx.h primtab.h support.c xmain.c
+
+PRIMS = Args.c Builtin.c Files.c
+
+SOURCE = $(INTERP) $(PRIMS) config.h
+
+import: $(SOURCE)
+
+$(INTERP): %: $(OBCDIR)/runtime/%; cp $< $@
+$(PRIMS): %: $(OBCDIR)/lib/%; cp $< $@
+config.h: $(OBCDIR)/config.h; cp $< $@
+
+pristine: force
+	rm -f $(SOURCE)
+
+force:
