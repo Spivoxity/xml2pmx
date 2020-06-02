@@ -291,7 +291,7 @@ char *search_path(char *name) {
 #endif
 
 char *search_path(char *name) {
-     char *path;
+     char *path, *p, *q, *r;
      static char buf[256];
      struct stat stbuf;
 
@@ -300,9 +300,8 @@ char *search_path(char *name) {
      path = getenv("PATH");
      if (path == NULL) return NULL;
 
-     for (char *p = path, *q; p != NULL; p = q) {
+     for (p = path; p != NULL; p = q) {
 	  q = strchr(p, ':');
-          char *r;
 	  if (q == NULL) {
 	       strcpy(buf, p);
 	       r = buf + strlen(p);

@@ -28,6 +28,9 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/* Need _GNU_SOURCE for MMAP_32BIT */
+#define _GNU_SOURCE 1
+
 #include "obx.h"
 
 /* Define MULTIBLOCKS to allow splitting of multi-page blocks */
@@ -320,7 +323,7 @@ static header *new_list(void) {
 
 /* Say "for (headers(h, list))" to traverse a cyclic list of headers. */
 #define headers(h, list) \
-     header *h = list->h_next; h != list; h = h->h_next
+     h = list->h_next; h != list; h = h->h_next
 
 
 /* PAGE TABLE */
@@ -368,9 +371,11 @@ static page_index *empty_index;
 
 /* page_setup -- make page table entries point to a given header */
 static void page_setup(void *base, unsigned size, header *h) {
+     void *p;
+
      ASSERT(size % PAGESIZE == 0);
 
-     for (void *p = base; p < base + size; p += PAGESIZE) {
+     for (p = base; p < base + size; p += PAGESIZE) {
 	  /* Make sure lower index exists */
 	  if (page_table[top_part(p)] == address(empty_index))
 	       page_table[top_part(p)] = 
@@ -478,7 +483,7 @@ static header *free_block(header *h, mybool mapped) {
 
 /* find_block -- find a free block of specified size */
 static header *find_block(unsigned size, unsigned objsize) {
-     header *h = NULL;
+     header *h = NULL, *h2;
      int i = min(size/PAGESIZE, BIG_BLOCK);
 
      ASSERT(size % PAGESIZE == 0);
@@ -598,7 +603,7 @@ static void init_sizes(void) {
         sequence is 2, 4, 8, 12, 16, 24, 32 ... words, rounded up to
 	the biggest multiple of GRANULE that allows the same number
 	of objects in a page. */
-
+     int i;
      unsigned k;
 
      n_sizes = 0; 
@@ -627,7 +632,7 @@ static void init_sizes(void) {
      ASSERT(size_bytes[n_sizes-1] == MAX_SMALL_BYTES);
 
      k = 0;
-     for (int i = 0; i < n_sizes; i++)
+     for (i = 0; i < n_sizes; i++)
 	  while (k * BYTES_PER_WORD <= size_bytes[i]) size_map[k++] = i;
 
      ASSERT(size_map[MAX_SMALL_WORDS] == n_sizes-1);
@@ -816,7 +821,7 @@ static unsigned *map_next(unsigned *p) {
 
 /* redir_map -- interpret a pointer map, redirecting each pointer */
 static void redir_map(unsigned map, void *base, int bmshift) {
-     int count, stride, op, ndim;
+     int count, stride, op, ndim, i;
      void *base2;
      unsigned *p;
 
@@ -888,7 +893,7 @@ static void redir_map(unsigned map, void *base, int bmshift) {
 
 	       ASSERT(count > 0);
 
-	       for (int i = 0; i < count; i++)
+	       for (i = 0; i < count; i++)
 		    redir_map(address(p+4), base2 + i*stride, 0);
 
 	       break;
@@ -897,7 +902,7 @@ static void redir_map(unsigned map, void *base, int bmshift) {
 	       base2 = base + p[1];
 	       count = p[2];
 
-	       for (int i = 0; i < count; i++)
+	       for (i = 0; i < count; i++)
 		    redirect((word *) &get_word(base2, i));
 	       break;
 			 
@@ -911,11 +916,11 @@ static void redir_map(unsigned map, void *base, int bmshift) {
 	       stride = p[3];
 
 	       count = 1;
-	       for (int i = 0; i < ndim; i++) 
+	       for (i = 0; i < ndim; i++) 
 		    count *= get_word(base2, i+1);
 	       
 	       base2 = ptrcast(void, get_word(base2, 0));
-	       for (int i = 0; i < count; i++)
+	       for (i = 0; i < count; i++)
 		    redir_map(address(p+4), base2 + i*stride, 0);
 
 	       break;
@@ -933,10 +938,10 @@ static void redir_map(unsigned map, void *base, int bmshift) {
 
 /* traverse_stack -- chain down the stack, redirecting in each frame */
 static void traverse_stack(value *xsp) {
-     value *sp = NULL;
+     value *sp = NULL, *f;
      value pc; pc.i = 0;
 
-     for (value *f = xsp; f != NULL; f = valptr(f[BP])) {
+     for (f = xsp; f != NULL; f = valptr(f[BP])) {
 	  value *c = valptr(f[CP]);
 #ifdef TRACE
 	  proc x = find_proc(c);
@@ -977,8 +982,9 @@ static void traverse_stack(value *xsp) {
 /* migrate -- redirect within the heap, recursively copying to new space */
 static void migrate(void) {
      header *thumb[N_SIZES], *big_thumb = block_pool[n_sizes];
-     void *finger[N_SIZES];
+     void *finger[N_SIZES], *p;
      mybool changed;
+     int i;
 
      /* For each pool, we keep a 'thumb' pointing to one of the blocks
 	in the pool, and a 'finger' pointing somewhere in that block.
@@ -996,7 +1002,7 @@ static void migrate(void) {
 	change, we must check all pools again in case more objects
 	have migrated into the new space. */
 
-     for (int i = 0; i < n_sizes; i++) {
+     for (i = 0; i < n_sizes; i++) {
 	  thumb[i] = block_pool[i];
 	  finger[i] = NULL;
      }
@@ -1004,7 +1010,7 @@ static void migrate(void) {
      do {
 	  changed = FALSE;
 
-	  for (int i = 0; i < n_sizes; i++) {
+	  for (i = 0; i < n_sizes; i++) {
 	       while (finger[i] != free_ptr[i]) {
 		    if (thumb[i] == block_pool[i]
 			|| finger[i] + pool_size(i) 
@@ -1014,7 +1020,7 @@ static void migrate(void) {
 		    }
 
 		    changed = TRUE;
-		    void *p = finger[i];
+		    p = finger[i];
 		    if (desc(p) != NULL)
 			 redir_map(desc(p)[DESC_MAP], p + BYTES_PER_WORD, 0);
 		    finger[i] = p + pool_size(i);
@@ -1024,35 +1030,16 @@ static void migrate(void) {
 	  while (big_thumb->h_next != block_pool[n_sizes]) {
 	       changed = TRUE;
 	       big_thumb = big_thumb->h_next;
-	       void *p = big_thumb->h_memory;
+	       p = big_thumb->h_memory;
 	       if (desc(p) != NULL)
 		    redir_map(desc(p)[DESC_MAP], p + BYTES_PER_WORD, 0);
 	  }
      } while (changed);
 }
 
-#ifdef HAVE_SIGPROCMASK
-#include <signal.h>
-
-static sigset_t oldmask;
-
-/* mask_signals -- block all signals */
-static void mask_signals(void) {
-     sigset_t mask;
-     sigfillset(&mask);
-     sigprocmask(SIG_SETMASK, &mask, &oldmask);
-}
-
-/* unmask_signals -- restore the old signal mask */
-static void unmask_signals(void) {
-     sigprocmask(SIG_SETMASK, &oldmask, NULL);
-}
-#endif
-
-#ifdef WINDOWS
+/* A batch program, so no need to catch signals */
 #define mask_signals()
 #define unmask_signals()
-#endif
 
 void gc_dump(void) {
 #ifdef DEBUG
@@ -1112,6 +1099,8 @@ void gc_dump(void) {
 }
 
 void gc_collect(value *sp) {
+     int i;
+
      if (!gcflag) return;
 
      GC_TRACE("[gc");
@@ -1120,7 +1109,7 @@ void gc_collect(value *sp) {
      pool_total = 0;
 
      /* Flip semispaces */
-     for (int i = 0; i <= n_sizes; i++) {
+     for (i = 0; i <= n_sizes; i++) {
 	  header *h = block_pool[i];
           block_pool[i] = old_pool[i]; old_pool[i] = h;
 	  ASSERT(empty(block_pool[i]));
@@ -1132,7 +1121,7 @@ void gc_collect(value *sp) {
      migrate();			/* Redirect internal pointers */
 
      /* Free old semispace */
-     for (int i = 0; i <= n_sizes; i++) {
+     for (i = 0; i <= n_sizes; i++) {
 	  while (! empty(old_pool[i])) {
 	       header *h = old_pool[i]->h_next;
 	       unlink(h);

@@ -112,15 +112,15 @@ static int read_int() {
 /* relocate -- read relocation data */
 static void relocate(int size) {
      uchar reloc[REL_BLOCK];
-     int n, m;
+     int n, m, base, i, nbytes;
      value *p;
 
-     for (int base = 0; base < size; base += n) {
+     for (base = 0; base < size; base += n) {
 	  n = min(size - base, REL_BLOCK * CODES_PER_BYTE * WORD_SIZE);
-	  int nbytes = (n/WORD_SIZE+CODES_PER_BYTE-1)/CODES_PER_BYTE;
+	  nbytes = (n/WORD_SIZE+CODES_PER_BYTE-1)/CODES_PER_BYTE;
 	  binread(reloc, nbytes);
 
-	  for (int i = 0; i < n; i += WORD_SIZE) {
+	  for (i = 0; i < n; i += WORD_SIZE) {
 	       int rbits = reloc_bits(reloc, i/WORD_SIZE);
 
 #ifdef DEBUG
@@ -159,7 +159,7 @@ static void relocate(int size) {
 /* read_symbols -- read symbol table */
 static void read_symbols(int dseg) {
      uchar *addr;
-     int chksum, nlines;
+     int chksum, nlines, i;
      int nm = 0, np = 0;
 #ifdef DEBUG
      const char *kname;
@@ -171,7 +171,7 @@ static void read_symbols(int dseg) {
      modtab = (module *) scratch_alloc(nmods * sizeof(module));
      proctab = (proc *) scratch_alloc(nprocs * sizeof(proc));
 
-     for (int i = 0; i < nsyms; i++) {
+     for (i = 0; i < nsyms; i++) {
 	  int kind = read_int();
 	  char *name = read_string(); 
 
@@ -219,7 +219,7 @@ static void read_symbols(int dseg) {
 
      /* Calculate module lengths */
      addr = dmem + dseg;
-     for (int i = nmods-1; i >= 0; i--) {
+     for (i = nmods-1; i >= 0; i--) {
 	  modtab[i]->m_length = addr - modtab[i]->m_addr;
 	  addr = modtab[i]->m_addr;
      }
@@ -227,10 +227,13 @@ static void read_symbols(int dseg) {
 
 /* load_file -- load a file of object code */
 void load_file(FILE *bfp) {
-     /* Get trailer */
      trailer t;
+     int i, nread, start;
+     int seglen[NSEGS];
+
+     /* Get trailer */
      fseek(bfp, - (long) sizeof(trailer), SEEK_END);
-     int nread = fread(&t, 1, sizeof(trailer), bfp);
+     nread = fread(&t, 1, sizeof(trailer), bfp);
      if (nread != sizeof(trailer)) panic("couldn't read trailer");
 
      /* Check magic numbers */
@@ -246,8 +249,7 @@ void load_file(FILE *bfp) {
 		"  it needs a different version of the runtime system]");
 
      /* Decode the other data */
-     int seglen[NSEGS];
-     for (int i = 0; i < NSEGS; i++)
+     for (i = 0; i < NSEGS; i++)
 	  seglen[i] = get_int(t.segment[i]);
 
      code_size = seglen[S_CODE];
@@ -255,7 +257,7 @@ void load_file(FILE *bfp) {
 
      nmods = get_int(t.nmods); nprocs = get_int(t.nprocs); 
      nsyms = get_int(t.nsyms);
-     int start = get_int(t.start);
+     start = get_int(t.start);
 
 #ifdef DEBUG
      if (dflag >= 1) {

@@ -3,7 +3,7 @@
 all: obx
 
 OBX = gc.o interp.o loader.o support.o xmain.o dynlink.o \
-	Args.o Builtin.o Files.o primtab.o wrapper.o
+	Args.o Builtin.o Files.o primtab0.o wrapper.o
 
 interp.o: action.c
 
@@ -15,7 +15,7 @@ obx: $(OBX)
 %.o: %.c
 	gcc $(CFLAGS) -c $< -o $@
 
-CFLAGS = -O2 -fno-strict-aliasing -I ..
+CFLAGS = -std=c90 -Wall -pedantic -Wno-pointer-arith -O2 -fno-strict-aliasing -I ..
 
 
 import pristine: force
@@ -30,4 +30,4 @@ force:
 
 ###
 
-$(OBX): config.h exec.h keiko.h obcommon.h obx.h primtab.h ../platform.h
+$(OBX): config.h exec.h keiko.h obcommon.h obx.h ../platform.h

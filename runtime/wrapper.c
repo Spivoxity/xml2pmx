@@ -7,8 +7,6 @@
 int xmain(int argc, char **argv);
 
 int main(int argc, char **argv) {
-     char **args;
-
      if (argc > 2 && strcmp(argv[2], "--help") == 0) {
           fprintf(stderr, "Help is at hand!\n");
           exit(1);

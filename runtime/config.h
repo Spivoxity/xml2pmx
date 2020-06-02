@@ -2,9 +2,6 @@
 
 #include "platform.h"
 
-/* Define if indexed jumps work. */
-#define HAVE_INDEXED_JUMPS 1
-
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
 
