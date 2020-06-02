@@ -27,7 +27,7 @@ Also C source for the bytecode interpreter
 
     action.c
     config.h
-    dynlink.c
+    dynlink.c -- doesn't actually do any dynamic linking
     exec.h
     gc.c
     interp.c
@@ -35,8 +35,7 @@ Also C source for the bytecode interpreter
     loader.c
     obcommon.h
     obx.h
-    primtab.c
-    primtab.h
+    primtab0.c
     support.c
     xmain.c
     Args.c

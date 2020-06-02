@@ -27,3 +27,4 @@ platform.h
 xml2pmx
 src/Strings1.k
 obnc
+runtime/primtab0.o

@@ -30,7 +30,6 @@
 
 /* Need _GNU_SOURCE for MMAP_32BIT */
 #define _GNU_SOURCE 1
-
 #include "obx.h"
 
 /* Define MULTIBLOCKS to allow splitting of multi-page blocks */
