@@ -136,7 +136,7 @@ TYPE
 		stem: CHAR;  
 		tied: ARRAY 2 OF ARRAY 8 OF CHAR;  
 		trembeam: LONGINT;  
-		tremolotype : ARRAY 10 OF CHAR;
+		tremolotype : ARRAY 32 OF CHAR;
 		tuplet: ARRAY 16 OF CHAR;  
 		type, normaltype: ARRAY 8 OF CHAR;   (* begend begin and end of a series of Grace notes *)
 		voicetime: INTEGER;  
@@ -276,7 +276,8 @@ VAR
 			INC( note );  
 			
 			WHILE (note <= noteto) DO 
-				IF (notes[ps, voice, measure, note].from > 0) THEN 
+				IF (notes[ps, voice, measure, note] # NIL)
+                                    & (notes[ps, voice, measure, note].from > 0) THEN 
 					delta := notes[ps, voice, measure, note].from - lastto - 1;   
 				(*	Out.Ln();  Out.String( " note delta : " );  	Out.Int( note, 5 );  Out.Int( delta, 5 );  *)
 					
@@ -717,7 +718,9 @@ PROCEDURE InOut( infilename, outfilename: ARRAY OF CHAR );
 								REPEAT INC( lastnote ) UNTIL notes[ps, 0, measure, lastnote].rest # "r";   
 							END;  *)
 						
-						Strings.Append( notes[ps, 0, measure, lastnote].righttext, directions[idir, j].pmxdirection );  
+                                                IF notes[ps, 0, measure, lastnote] # NIL THEN
+                                                  Strings.Append( notes[ps, 0, measure, lastnote].righttext, directions[idir, j].pmxdirection )
+                                                END;  
 						(* Out.String("***********");OutDir(idir,j); *)
 						lastdirtype := "d";   (* b.loesch( directions[idir, j].pmxdirection ); *)
 						
@@ -874,7 +877,7 @@ END PMXDuration;
 												  VAR istuplet: BOOLEAN );  
 	(* Writes the data for one note or rest to Files.Rider "W"; called by PROC. W ritePMX; *)
 	VAR pmxdur: ARRAY 16 OF CHAR;  sactual : ARRAY 4 OF CHAR;
-		pmxnote: ARRAY 64 OF CHAR;  blindrest : ARRAY 32 OF CHAR;
+		pmxnote: ARRAY 32 OF CHAR;  blindrest : ARRAY 32 OF CHAR;
 		tremolo: ARRAY 16 OF CHAR;  maxinote : LONGINT;
 		octave: CHAR;  stemchar: CHAR;  maxnotelastmeasure : LONGINT;
 	
@@ -1358,9 +1361,12 @@ END;
 					
 					WHILE note <= noteto DO  (* 1 *)
 						IF measure = 25 THEN Out.Ln(); Out.String("25"); Out.Int(note, 5); END; (* Probeausdruck 04.05.2020 *)
-						IF (Strings.IsAlpha( notes[ps, voice, measure, note].pitchstep ) OR 	 (notes[ps, voice, measure, note].rest = "r")) 
+						IF (notes[ps, voice, measure, note] # NIL) &
+                                                      (Strings.IsAlpha( notes[ps, voice, measure, note].pitchstep) OR
+                                                        (notes[ps, voice, measure, note].rest = "r"))
 						(*  note OR rest *)
-						(*	29.3.2020:   & ( ( notes[ps, voice, measure, note].probj = TRUE ) OR ( (11 IN outputset) & ( notes[ps, voice, measure, note].probj = FALSE )  ) ) *)
+						(*	29.3.2020:   & ( ( notes[ps, voice, measure, note].probj = TRUE ) OR
+                                                            ( (11 IN outputset) & ( notes[ps, voice, measure, note].probj = FALSE )  ) ) *)
 							  
 
 							   (* remove print-object="no". 26.07.2019*)
@@ -1382,8 +1388,9 @@ END;
 					(* Measure Properties go here *) ;  
 					(*	WriteString(W," | /");  *)
 					IF ( voicelimm[ps,measure] = 2 ) & (voice =  0) & (nnotes > 0) 
-					  &  (	(notes[ps, 0, measure, minnote1[part,staff,measure ] ].probj = TRUE) 
-				  OR ~ ( 10 IN outputset ) )
+					  &  (	((notes[ps,0,measure,minnote1[part,staff,measure]] # NIL)
+                                                 & (notes[ps, 0, measure, minnote1[part,staff,measure]].probj = TRUE))
+  				              OR ~ ( 10 IN outputset ) )
 				  
 					(* second slash removed because second voice eliminated. Change 04.05.2020 *)
 		 			THEN 
@@ -1528,7 +1535,7 @@ END;
 	    orientation = "d" => note with stem down yields tie with orientation "u".
 	 orientation = "u" => note with stem up yields tie with orientation "l". *)
 	VAR c: CHAR;  
-		number: ARRAY 4 OF CHAR;  orient : ARRAY 10 OF CHAR; orientation : CHAR;
+		number: ARRAY 32 OF CHAR;  orient : ARRAY 32 OF CHAR; orientation : CHAR;
 		nt: Fifo.Node;  
 	
 	BEGIN 
@@ -1678,7 +1685,7 @@ END;
 	VAR pmxslur, pmxtied, pmxbeam, type, pmxrepeat, pmxgrace: ARRAY 32 OF CHAR;  
 		number, ntype, mtype: ARRAY 32 OF CHAR;  
 		m: b.Tag;  
-		defaultxs: ARRAY 6 OF CHAR;  (* openslur : ARRAY 1000 OF OpenSlurDesc; *)
+		defaultxs: ARRAY 32 OF CHAR;  (* openslur : ARRAY 1000 OF OpenSlurDesc; *)
 		ps, defaultx, long : LONGINT;  
 	
 	BEGIN 
@@ -1686,7 +1693,8 @@ END;
                 NEW(notes[ps, voice, measure, note]);
                 notes[ps, voice, measure, note].voicetime := n.voicetime;  
 		notes[ps, voice, measure, note].cue := n.cue;
-		notes[ps, voice, measure, note].from := n.from;  notes[ps, voice, measure, note].to := n.to;  
+		notes[ps, voice, measure, note].from := n.from;
+                notes[ps, voice, measure, note].to := n.to;  
 		(*	Out.Ln(); Out.String("NotesProp voice + voice : ");
 		Out.Int(part,5);Out.Int(staff,5);Out.Int(measure,5);Out.Int(voice,5); Out.Int(n.voice,5); 
 		Out.Int(note,5);Out.Int(n.from,5);Out.Int(n.to,5); Out.Int(n.voicetime,5); *)
@@ -1702,7 +1710,8 @@ END;
 		 ELSE  notes[ps, voice, measure, note].probj :=TRUE; END;
 		notes[ps, voice, measure, note].clef := lastclef[ps];  
 		b.FindAtt( n, "default-x", defaultxs );  Strings.StrToInt( defaultxs, defaultx );  
-		notes[ps, voice, measure, note].defaultx := SHORT( defaultx );  notes[ps, voice, measure, note].from := n.from;  
+		notes[ps, voice, measure, note].defaultx := SHORT( defaultx );
+                notes[ps, voice, measure, note].from := n.from;  
 		notes[ps, voice, measure, note].to := n.to;  
 		
 		(* clef change on bar change 
@@ -1773,7 +1782,8 @@ END;
 				laststaff := notes[ps, voice, measure, note].staff		END;   *)
 				(*	IF (n.tagname = voicetag) THEN notes[ps, voice, measure, note].voice := b.ExtractInt( n.between ) 		END;  *)
 				IF (n.tagname = dottag) OR (n.tagname = "<dot />") OR (n.tagname = "<dot>") THEN 
-					IF notes[ps, voice, measure, note].dot = "d" THEN notes[ps, voice, measure, note].dot := "D";  
+					IF notes[ps, voice, measure, note].dot = "d" THEN
+                                                notes[ps, voice, measure, note].dot := "D";  
 					ELSE notes[ps, voice, measure, note].dot := "d"
 					END;  
 				END;  
@@ -2144,7 +2154,8 @@ END;
 					INC( note );   (* NoteOut(notes[ps,voice,measure,note]); *)
 				UNTIL (note = maxnote1[part, staff, measure]) OR (notes[ps, voice, measure, note].to = before);  
 				
-				IF (notes[ps, voice, measure, note].to = before) THEN notes[ps, voice, measure, note].clefchanged := clef;  
+				IF (notes[ps, voice, measure, note].to = before) THEN
+                                        notes[ps, voice, measure, note].clefchanged := clef;  
 				END;  
 				
 				INC( clefct );  
@@ -2155,7 +2166,7 @@ END;
 	END CopyClefVoice;   *)
 	 PROCEDURE Accidentals(n : b.Tag; ps, voice, measure, note : LONGINT);			
 	VAR 
-		cautionary, editorial, parentheses 	: ARRAY 16 OF CHAR;  
+		cautionary, editorial, parentheses 	: ARRAY 32 OF CHAR;  
 	BEGIN			
 			IF (n.tagname) = accidentaltag THEN  (* 5 *)
 				b.FindAtt( n, "editorial", editorial ); 
@@ -2261,7 +2272,7 @@ INC
 	PROCEDURE DirectionProp( VAR n: b.Tag; voice01 : LONGINT );  
 	VAR endtag, placement, type, res: ARRAY 128 OF CHAR;  
 		dirnum, dirtypenr : LONGINT;  defaultx: LONGINT;  
-		defaultxs: ARRAY 6 OF CHAR;  
+		defaultxs: ARRAY 32 OF CHAR;  
 	BEGIN 
 	(* Out.Ln(); Out.String("in direction prop"); *)
 

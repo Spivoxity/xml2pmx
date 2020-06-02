@@ -10,8 +10,16 @@ OBJS = MyFiles.k Strings1.k Fifo.k b.k Complete.k Testbed.k
 xml2pmx.x: $(OBJS)
 	obc $^ -o $@ 
 
+TEST := $(patsubst %,test-%,$(notdir $(wildcard ../test/*.xml)))
+
+test: $(TEST)
+
+test-%.xml: force
+	./xml2pmx.x ../test/$*.xml $*.pmx a 0
+	cmp ../test/$*.exp $*.pmx && echo "**PASSED**"
+
 %.k: %.m
-	obc -c $< -o $@
+	obc -c -x $< -o $@
 
 clean: force
 	rm -f *.k

@@ -12,9 +12,14 @@ xml2pmx: runtime/obx src/xml2pmx.x
 runtime/obx: force
 	$(MAKE) -C $(@D) $(@F)
 
-test: force
-	./xml2pmx test/Telemann.xml Telemann.pmx a 0
-	cmp test/Telemann.exp Telemann.pmx && echo "**PASSED**"
+TEST := $(patsubst %,test-%,$(notdir $(wildcard test/*.xml)))
+
+test: $(TEST)
+
+test-%.xml: force
+	./xml2pmx test/$*.xml $*.pmx a 0
+	cmp test/$*.exp $*.pmx && echo "**PASSED**"
+	@rm -r $*.pmxprep $*.pmx
 
 clean realclean: %: %here
 	$(MAKE) -C runtime $@

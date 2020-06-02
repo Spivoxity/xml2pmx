@@ -88,7 +88,7 @@ IF (type # "continue") THEN (* gibt es das Uberhaupt? *)
 	    orientation = "d" => note with stem down yields tie with orientation "u".
 	 orientation = "u" => note with stem up yields tie with orientation "l". *)
 	VAR c: CHAR;  
-		number: ARRAY 4 OF CHAR;  orient : ARRAY 10 OF CHAR; orientation : CHAR;
+		number: ARRAY 32 OF CHAR;  orient : ARRAY 32 OF CHAR; orientation : CHAR;
 		nt: Fifo.Node;  
 	
 	BEGIN 
@@ -125,7 +125,7 @@ IF (type # "continue") THEN (* gibt es das Uberhaupt? *)
 	
 PROCEDURE lyric*( ps: LONGINT;  VAR n: Tag );  
 	VAR endtag: ARRAY 32 OF CHAR;  
-		number, syllabic: ARRAY 10 OF CHAR;  istr : LONGINT;
+		number, syllabic: ARRAY 32 OF CHAR;  istr : LONGINT;
 	BEGIN 
 	IF (n.tagname = "<lyric>") (* & (number = "1") *) THEN 
 

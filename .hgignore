@@ -26,3 +26,4 @@ configure
 platform.h
 xml2pmx
 src/Strings1.k
+obnc
