@@ -123,8 +123,8 @@ static const char *assert_fmt = "*assertion %s failed on line %d of file %s";
 #endif
 
 static void *grab_chunk(unsigned size) {
-     void *p;
-     static void *last_addr = HINT;
+     byte *p;
+     static byte *last_addr = HINT;
 
 #ifdef MAP_ANONYMOUS
      p = mmap(last_addr, size, PROT_READ|PROT_WRITE, 
@@ -224,8 +224,8 @@ static void *get_memory(unsigned size) {
    and wastefully discards it if it is too small to satisfy the next
    memory request. */
 
-static void *scratch_free = NULL;
-static void *scratch_limit = NULL;
+static byte *scratch_free = NULL;
+static byte *scratch_limit = NULL;
 
 void *scratch_alloc(unsigned size) {
      unsigned alloc_size = round_up(size, SCRATCH_ALIGN);
@@ -266,7 +266,7 @@ void *scratch_alloc(unsigned size) {
    GC which semispace they belong to. */
 
 typedef struct _header {
-     void *h_memory;		/* The block itself */
+     byte *h_memory;		/* The block itself */
      unsigned h_size;		/* Size of block (bytes) */
      unsigned h_objsize;	/* Size of each object (bytes), or 0 if free */
      unsigned h_epoch;		/* Timestamp to identify semispace */
@@ -370,11 +370,11 @@ static page_index *empty_index;
 
 /* page_setup -- make page table entries point to a given header */
 static void page_setup(void *base, unsigned size, header *h) {
-     void *p;
+     byte *p;
 
      ASSERT(size % PAGESIZE == 0);
 
-     for (p = base; p < base + size; p += PAGESIZE) {
+     for (p = base; p < (byte *) base + size; p += PAGESIZE) {
 	  /* Make sure lower index exists */
 	  if (page_table[top_part(p)] == address(empty_index))
 	       page_table[top_part(p)] = 
@@ -648,7 +648,7 @@ static header *block_pool[N_SIZES+1], *old_pool[N_SIZES+1];
 
 /* The free storage in each pool is in the upper part of one of the
    last block of the pool. */
-static void *free_ptr[N_SIZES+1]; /* First free object */
+static byte *free_ptr[N_SIZES+1]; /* First free object */
 static int free_count[N_SIZES+1]; /* Number of free objects */
 
 /* To allocate an object of a given size, we first round up the size,
@@ -753,11 +753,11 @@ void *gc_alloc(value *desc, unsigned size, value *sp) {
 
 /* redirect -- translate pointer into new space */
 static void redirect(word *p) {
-     void *q, *r, *s;
+     byte *q, *r, *s;
      header *h;
      int index;
 
-     q  = ptrcast(void, *p); /* q is the old pointer value */
+     q  = ptrcast(byte, *p); /* q is the old pointer value */
      if (q == NULL) return;
      h = get_header(q);
      if (h == NULL) return;	/* Not in the managed heap */
@@ -819,9 +819,9 @@ static unsigned *map_next(unsigned *p) {
 }
 
 /* redir_map -- interpret a pointer map, redirecting each pointer */
-static void redir_map(unsigned map, void *base, int bmshift) {
+static void redir_map(unsigned map, byte *base, int bmshift) {
      int count, stride, op, ndim, i;
-     void *base2;
+     byte *base2;
      unsigned *p;
 
      if (map == 0) return;
@@ -949,7 +949,7 @@ static void traverse_stack(value *xsp) {
 	  /* Local variables and parameters */
 	  DEBUG_PRINT('m', ("\nFrame for %s", x->p_name));
 	  if (c[CP_MAP].i != 0) 
-	       redir_map(c[CP_MAP].i, f, FRAME_SHIFT);
+	       redir_map(c[CP_MAP].i, (byte *) f, FRAME_SHIFT);
 
 	  if (pc.i != 0) {
 	       /* Evaluation stack: look up calling PC value in
@@ -965,12 +965,12 @@ static void traverse_stack(value *xsp) {
 		    }
 		    if (pointer(r[0]) != NULL) {
 			 DEBUG_PRINT('m', ("\nEval stack (%#x)", r[1].i));
-			 redir_map(r[1].i, sp, 0);
+			 redir_map(r[1].i, (byte *) sp, 0);
 		    }
 	       } else {
 		    /* Compiled primitive: f[PC].i is stack map */
 		    DEBUG_PRINT('m', ("\nEval stack (%#x)", pc.i));
-		    redir_map(pc.i, sp, 0);
+		    redir_map(pc.i, (byte *) sp, 0);
 	       }
 	  }
 
@@ -981,7 +981,7 @@ static void traverse_stack(value *xsp) {
 /* migrate -- redirect within the heap, recursively copying to new space */
 static void migrate(void) {
      header *thumb[N_SIZES], *big_thumb = block_pool[n_sizes];
-     void *finger[N_SIZES], *p;
+     byte *finger[N_SIZES], *p;
      mybool changed;
      int i;
 

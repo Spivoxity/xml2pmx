@@ -25,18 +25,18 @@ void FLEXASSIGN(value *bp);
 void sys_move(value *bp);
 void sys_liberror(value *bp);
 void P_load_lib(value *bp) {
-     load_lib(pointer(bp[HEAD]));
+     load_lib((char *) pointer(bp[HEAD]));
 }
 void gc_collect(value *bp);
 void P_gc_debug(value *bp) {
-     gc_debug(pointer(bp[HEAD]));
+     gc_debug((char *) pointer(bp[HEAD]));
 }
 void P_gc_heap_size(value *bp) {
      ob_res.i = gc_heap_size();
 }
 void P_fopen(value *bp) {
-     put_long(&ob_res,(ptrtype) fopen(pointer(bp[HEAD]),
-                                        pointer(bp[HEAD+2])));
+     put_long(&ob_res,(ptrtype) fopen((char *) pointer(bp[HEAD]),
+                                      (char *) pointer(bp[HEAD+2])));
 }
 void P_fclose(value *bp) {
      fclose(ptrcast(void, get_long(&bp[HEAD]))); 
@@ -107,10 +107,10 @@ void P_InitFiles(value *bp) {
                 pointer(bp[HEAD+2])); 
 }
 void P_atoi(value *bp) {
-     ob_res.i = atoi(pointer(bp[HEAD])); 
+     ob_res.i = atoi((char *) pointer(bp[HEAD])); 
 }
 void P_atof(value *bp) {
-     put_double(&ob_res, atof(pointer(bp[HEAD]))); 
+     put_double(&ob_res, atof((char *) pointer(bp[HEAD]))); 
 }
 void GetArg(value *bp);
 void GetEnv(value *bp);

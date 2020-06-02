@@ -15,8 +15,7 @@ obx: $(OBX)
 %.o: %.c
 	gcc $(CFLAGS) -c $< -o $@
 
-CFLAGS = -std=c90 -Wall -pedantic -Wno-pointer-arith -O2 -fno-strict-aliasing -I ..
-
+CFLAGS = -std=c90 -Wall -pedantic -O2 -fno-strict-aliasing -I ..
 
 import pristine: force
 	make -f Makefile.import $@

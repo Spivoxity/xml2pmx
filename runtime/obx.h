@@ -48,6 +48,7 @@ typedef union value value;
 
 typedef void primitive(value *sp);
 
+typedef uint8_t byte;
 typedef uint32_t word;
 typedef uintptr_t ptrtype;
 
@@ -58,7 +59,7 @@ union value {
 };
 
 #define valptr(v) ((value *) (ptrtype) ((v).a))
-#define pointer(v) ((void *) (ptrtype) ((v).a))
+#define pointer(v) ((byte *) (ptrtype) ((v).a))
 
 #define address(p) ((word) (ptrtype) (p))
 #define ptrcast(t, a) ((t *) (ptrtype) (a))
