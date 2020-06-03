@@ -1,4 +1,8 @@
-# runtime/Makefile
+# runtime/Makefile.ac
+
+## Config stuff:
+PLATFLAGS = @PLATFLAGS@
+## End of config
 
 all: obx
 
@@ -10,7 +14,8 @@ interp.o: action.c
 xmain.o: CFLAGS += -DREVID=\"xml2pmx\" -Dmain=xmain
 
 obx: $(OBX)
-	gcc $(CFLAGS) -s $^ -o $@
+	gcc $(CFLAGS) $(PLATFLAGS) $^ -o $@
+	strip $@
 
 %.o: %.c
 	gcc $(CFLAGS) -c $< -o $@

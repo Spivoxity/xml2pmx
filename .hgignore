@@ -1,4 +1,5 @@
 syntax: glob
+autom4te.cache
 import
 src/Complete.k
 src/Fifo.k

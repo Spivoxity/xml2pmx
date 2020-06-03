@@ -1,6 +1,7 @@
 AC_INIT(xml2pmx, 2020-06-04, rdt@cs.queensu.ca)
 AC_CONFIG_SRCDIR(runtime/obx.h)
 AC_CONFIG_AUX_DIR(scripts)
+AC_CONFIG_FILES(runtime/Makefile)
 AC_CONFIG_HEADERS(platform.h)
 
 AC_CANONICAL_HOST
@@ -13,7 +14,8 @@ case $host in
     AC_DEFINE(WINDOWS, 1, [Define to enable hacks for Windows]);;
   *-*-darwin*)
     AC_DEFINE(MACOS, 1, [Define to enable hacks for MacOS X])
-    AC_DEFINE(HAVE_MMAP, 1);;
+    AC_DEFINE(HAVE_MMAP, 1)
+    AC_SUBST(PLATFLAGS, "-pagezero_size 0x1000");;
   *-*-freebsd*)
     AC_DEFINE(FREEBSD, 1, [Define to enable hacks for FreeBSD])
     AC_DEFINE(HAVE_MMAP, 1);;
