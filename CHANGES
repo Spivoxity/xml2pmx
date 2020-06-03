@@ -11,10 +11,18 @@ Recommended changes
   
     NEW(notes[ps, voice, measure, note]);
 
-  Add ^ to one call of WriteNote2PMX:
+* Add ^ to one call of WriteNote2PMX:
 
     WriteNote2PMX( W, notes[ps, voice, measure, note]^, ps, voice,
                    voicefrom, measure, note, Dtext, Rtext, istuplet );  
+
+* Add tests for notes[p, v, m, n] = NIL in four places: l.293, l.771,
+  l.1411, l.1435
+
+* In Testbed, increase the size of the following string buffers to 32:
+
+  tremolotype (l.138); tremolo, blindrest (l.928); number (l.1580);
+  cautionary, editorial, parentheses (l.2206); defaultxs (l.2312).
 
 * Only print clefspec[i] if it is non-null:
 
