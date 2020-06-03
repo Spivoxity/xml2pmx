@@ -1,17 +1,21 @@
 AC_INIT(xml2pmx, 2020-06-04, rdt@cs.queensu.ca)
 AC_CONFIG_SRCDIR(runtime/obx.h)
 AC_CONFIG_AUX_DIR(scripts)
-AC_CONFIG_FILES(runtime/Makefile)
+AC_CONFIG_FILES(Makefile runtime/Makefile)
 AC_CONFIG_HEADERS(platform.h)
 
 AC_CANONICAL_HOST
+
+FIXUP=cat
 
 case $host in
   *-*-linux-*)
     AC_DEFINE(LINUX, 1, [Define for Linux])
     AC_DEFINE(HAVE_MMAP, 1, [Define if mmap available]);;
   *-*-mingw*|*-*-cygwin)
-    AC_DEFINE(WINDOWS, 1, [Define to enable hacks for Windows]);;
+    AC_DEFINE(WINDOWS, 1, [Define to enable hacks for Windows])
+    AC_SUBST(EXEEXT, ".exe")
+    FIXUP=d2u;;
   *-*-darwin*)
     AC_DEFINE(MACOS, 1, [Define to enable hacks for MacOS X])
     AC_DEFINE(HAVE_MMAP, 1)
@@ -20,6 +24,8 @@ case $host in
     AC_DEFINE(FREEBSD, 1, [Define to enable hacks for FreeBSD])
     AC_DEFINE(HAVE_MMAP, 1);;
 esac
+
+AC_SUBST(FIXUP)
 
 case $host in
   i686-*)

@@ -2,6 +2,7 @@
 
 ## Config stuff:
 PLATFLAGS = @PLATFLAGS@
+EXEEXT = .exe
 ## End of config
 
 all: obx
@@ -13,7 +14,7 @@ interp.o: action.c
 
 xmain.o: CFLAGS += -DREVID=\"xml2pmx\" -Dmain=xmain
 
-obx: $(OBX)
+obx$(EXEEXT): $(OBX)
 	gcc $(CFLAGS) $(PLATFLAGS) $^ -o $@
 	strip $@
 
