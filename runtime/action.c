@@ -28,22 +28,22 @@
 
           ACTION(LDKW_1)
                pc = pc0 + 2;
-               sp--; sp[0].i =  const(get1(pc0+1)).i ;
+               sp--; sp[0].i =  konst(get1(pc0+1)).i ;
                NEXT;
 
           ACTION(LDKW_2)
                pc = pc0 + 3;
-               sp--; sp[0].i =  const(get2(pc0+1)).i ;
+               sp--; sp[0].i =  konst(get2(pc0+1)).i ;
                NEXT;
 
           ACTION(LDKF_1)
                pc = pc0 + 2;
-               sp--; sp[0].f =  const(get1(pc0+1)).f ;
+               sp--; sp[0].f =  konst(get1(pc0+1)).f ;
                NEXT;
 
           ACTION(LDKF_2)
                pc = pc0 + 3;
-               sp--; sp[0].f =  const(get2(pc0+1)).f ;
+               sp--; sp[0].f =  konst(get2(pc0+1)).f ;
                NEXT;
 
           ACTION(LOCAL_x1)
@@ -427,12 +427,12 @@
 
           ACTION(LDKD_1)
                pc = pc0 + 2;
-               sp -= 2; putdbl(&sp[0],  getdbl(&const(get1(pc0+1))) );
+               sp -= 2; putdbl(&sp[0],  getdbl(&konst(get1(pc0+1))) );
                NEXT;
 
           ACTION(LDKD_2)
                pc = pc0 + 3;
-               sp -= 2; putdbl(&sp[0],  getdbl(&const(get2(pc0+1))) );
+               sp -= 2; putdbl(&sp[0],  getdbl(&konst(get2(pc0+1))) );
                NEXT;
 
           ACTION(LOADQ)
@@ -447,12 +447,12 @@
 
           ACTION(LDKQ_1)
                pc = pc0 + 2;
-               sp -= 2; putlong(&sp[0],  getlong(&const(get1(pc0+1))) );
+               sp -= 2; putlong(&sp[0],  getlong(&konst(get1(pc0+1))) );
                NEXT;
 
           ACTION(LDKQ_2)
                pc = pc0 + 3;
-               sp -= 2; putlong(&sp[0],  getlong(&const(get2(pc0+1))) );
+               sp -= 2; putlong(&sp[0],  getlong(&konst(get2(pc0+1))) );
                NEXT;
 
           ACTION(INCL_1)

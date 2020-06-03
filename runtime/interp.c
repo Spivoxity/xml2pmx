@@ -28,19 +28,6 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* This file is the skeleton of the bytecode interpreter; the parts
-   specific to each instruction are inserted from the file
-   'keiko.iset' by the script 'iset.tcl'.  There are three places that
-   code is inserted, each marked by two dollar signs.  In order of
-   appearance, they are:
-
-   1. A jump table for quick dispatching (used if JTABLE is defined).
-
-   2. Macro definitions used in the action routines.
-
-   3. Action routines for each instruction, forming the cases in a big
-      switch. */
-
 #include <math.h>
 #include "obx.h"
 #include "keiko.h"
@@ -104,7 +91,7 @@ static inline void putlong(value *v, longint x) {
 #define parent(a, t)    indir(pointer(bp[SL]) + a, t)
 #define indir(p, t)     (* (t *) (p))
 #define subs(p, n, t)   ((t *) (p))[n]
-#define const(n)        cp[CP_CONST+n]
+#define konst(n)        cp[CP_CONST+n]
 #define jump(lab)       pc = pc0 + lab
 
 #define index(x, y, s)  pointer(x) + (y.i << s)
@@ -114,8 +101,8 @@ static inline void putlong(value *v, longint x) {
 #define store(x, y, t)  indir(pointer(y), t) = x
 #define ldl(a, t)       indir(local(a), t)
 #define stl(a, x, t)    indir(local(a), t) = x
-#define ldg(a, t)       indir(pointer(const(a)), t)
-#define stg(a, x, t)    indir(pointer(const(a)), t) = x
+#define ldg(a, t)       indir(pointer(konst(a)), t)
+#define stg(a, x, t)    indir(pointer(konst(a)), t) = x
 #define ldn(a, x)       indir(pointer(x)+a, int)
 #define stn(a, x, y)    indir(pointer(y)+a, int) = x
 #define ldi(x, y, t)    subs(pointer(x), y.i, t)

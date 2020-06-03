@@ -9,18 +9,15 @@ AC_CANONICAL_HOST
 case $host in
   *-*-linux-*)
     AC_DEFINE(LINUX, 1, [Define for Linux])
-    AC_DEFINE(HAVE_MMAP, 1, [Define if mmap available])
-    AC_DEFINE(HAVE_SIGPROCMASK, 1, [Define if sigprocmask available]);;
+    AC_DEFINE(HAVE_MMAP, 1, [Define if mmap available]);;
   *-*-mingw*|*-*-cygwin)
     AC_DEFINE(WINDOWS, 1, [Define to enable hacks for Windows]);;
   *-*-darwin*)
     AC_DEFINE(MACOS, 1, [Define to enable hacks for MacOS X])
-    AC_DEFINE(HAVE_MMAP, 1)
-    AC_DEFINE(HAVE_SIGPROCMASK, 1);;
+    AC_DEFINE(HAVE_MMAP, 1);;
   *-*-freebsd*)
     AC_DEFINE(FREEBSD, 1, [Define to enable hacks for FreeBSD])
-    AC_DEFINE(HAVE_MMAP, 1)
-    AC_DEFINE(HAVE_SIGPROCMASK, 1);;
+    AC_DEFINE(HAVE_MMAP, 1);;
 esac
 
 case $host in

@@ -6,9 +6,6 @@
 /* Define if mmap available */
 #undef HAVE_MMAP
 
-/* Define if sigprocmask available */
-#undef HAVE_SIGPROCMASK
-
 /* Define for Linux */
 #undef LINUX
 
