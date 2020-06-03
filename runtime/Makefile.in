@@ -2,7 +2,7 @@
 
 ## Config stuff:
 PLATFLAGS = @PLATFLAGS@
-EXEEXT = .exe
+EXEEXT = @EXEEXT@
 ## End of config
 
 all: obx
