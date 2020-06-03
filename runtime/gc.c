@@ -152,9 +152,17 @@ static void *grab_chunk(unsigned size) {
 #endif
 
 #ifdef WINDOWS
-#include <windows.h>
-
 #ifdef M64X32
+__attribute__((dllimport)) void *
+GetModuleHandleA (const char *lpModuleName);
+__attribute__((dllimport)) void *
+GetProcAddress (void *hModule, const char *lpProcName);
+
+#define INVALID_HANDLE_VALUE ((void *) (-1))
+#define MEM_COMMIT 0x1000
+#define MEM_RESERVE 0x2000
+#define PAGE_READWRITE 0x04
+
 /* With thanks to the LuaJIT people */
 typedef long (*ntavm_ptr)(HANDLE, void **, ULONG, size_t *, ULONG, ULONG);
 
@@ -176,6 +184,14 @@ static void *grab_chunk(unsigned size0) {
      return p;
 }
 #else 
+__attribute__((dllimport)) void * __attribute__((__stdcall__))
+VirtualAlloc(void *lpAddress, unsigned long dwSize,
+	     unsigned long flAllocationType, unsigned long flProtect);
+
+#define MEM_COMMIT 0x1000
+#define MEM_RESERVE 0x2000
+#define PAGE_READWRITE 0x04
+
 static void *grab_chunk(unsigned size) {
      return VirtualAlloc(NULL, size, MEM_COMMIT|MEM_RESERVE,
 			 PAGE_READWRITE);
