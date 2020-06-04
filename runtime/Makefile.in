@@ -26,7 +26,7 @@ update import pristine: force
 	make -f Makefile.import $@
 
 clean: force
-	rm -f *.o obx
+	rm -f *.o xml2pmx$(EXEEXT)
 
 realclean: clean
 
