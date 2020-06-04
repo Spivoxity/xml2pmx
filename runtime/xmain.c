@@ -191,20 +191,15 @@ static const char *message(int code) {
 
 /* error_stop -- runtime error with explicit message text */
 void error_stop(const char *msg, int line, value *bp, uchar *pc) {
-     value *cp = valptr(bp[CP]);
-
 #ifdef OBXDEB
+     value *cp = valptr(bp[CP]);
      char buf[256];
      sprintf(buf, msg, ob_res.i);
      debug_break(cp, bp, pc, "error %d %s", line, buf);
 #else
-     module mod = find_module(cp);
-
      fprintf(stderr, "Runtime error: ");
      fprintf(stderr, msg, ob_res.i);
-     if (line > 0) fprintf(stderr, " on line %d", line);
-     if (mod != NULL && strcmp(mod->m_name, "_Builtin") != 0) 
-	  fprintf(stderr, " in module %s", mod->m_name);
+     if (line > 0) fprintf(stderr, " on line %d\n", line);
      fprintf(stderr, "\n");
      fflush(stderr);
 
@@ -271,56 +266,6 @@ mybool custom_file(char *name) {
      return result;
 }
  
-#ifdef WINDOWS
-#include <windows.h>
-#include <winbase.h>
-
-char *search_path(char *name) {
-     static char buf[_MAX_PATH];
-     char *filepart;
-
-     if (SearchPath(NULL, name, ".exe", _MAX_PATH, buf, &filepart) == 0)
-	  return NULL;
-
-     return buf;
-}
-#else
-#include <sys/stat.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-
-char *search_path(char *name) {
-     char *path, *p, *q, *r;
-     static char buf[256];
-     struct stat stbuf;
-
-     if (name == NULL || strchr(name, '/') != NULL) return name;
-
-     path = getenv("PATH");
-     if (path == NULL) return NULL;
-
-     for (p = path; p != NULL; p = q) {
-	  q = strchr(p, ':');
-	  if (q == NULL) {
-	       strcpy(buf, p);
-	       r = buf + strlen(p);
-	  } else {
-	       strncpy(buf, p, q-p);
-	       r = buf + (q-p); q++;
-	  }
-	  if (r > buf) *r++ = '/';
-	  strcpy(r, name);
-
-	  if (access(buf, R_OK) == 0 && stat(buf, &stbuf) == 0
-	      && S_ISREG(stbuf.st_mode))
-	       return buf;
-     }
-
-     return NULL;
-}
-#endif
-
 #define argc saved_argc
 #define argv saved_argv
 
