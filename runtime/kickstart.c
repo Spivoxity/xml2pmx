@@ -14,7 +14,7 @@ extern const unsigned preload_dmem[];
 extern const uchar preload_reloc[];
 extern const unsigned preload_entry, preload_gcmap;
 extern const unsigned preload_nprocs;
-extern const struct pre_proc { char *name; unsigned addr; } preload_syms[];
+extern const struct _proc preload_syms[];
 
 void put4(uchar *buf, int x) {
      buf[0] = x;
@@ -63,18 +63,6 @@ static void relocate(int size) {
      }
 }
 	       
-/* read_symbols -- read symbol table */
-static void read_symbols(void) {
-     int i;
-
-     proctab = (proc *) scratch_alloc(nprocs * sizeof(proc));
-
-     for (i = 0; i < nprocs; i++) {
-          const struct pre_proc *p = &preload_syms[i];
-          proctab[i] = make_proc(p->name, dmem + p->addr);
-     }
-}
-
 /* load_image -- unpack preloaded file of object code */
 void load_image(void) {
      int i;
@@ -108,5 +96,5 @@ void load_image(void) {
      gcmap = (value *) &dmem[preload_gcmap];
 
      /* Read the symbols */
-     if (nsyms > 0) read_symbols();
+     proctab = (struct _proc *) preload_syms;
 }

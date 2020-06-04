@@ -1,3 +1,5 @@
+#include "obx.h"
+
 const unsigned preload_seglen[] = {
      51488, 19044, 1293560, 1048544,
 };
@@ -7792,7 +7794,7 @@ const unsigned preload_gcmap = 18996;
 
 const unsigned preload_nprocs = 226;
 
-const struct { char *name; unsigned addr; } preload_syms[] = {
+const struct _proc preload_syms[] = {
      { "HALT", 0 },
      { "NEW", 48 },
      { "NEWFLEX", 88 },

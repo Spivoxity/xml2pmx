@@ -88,10 +88,10 @@ module make_module(char *name, uchar *addr, int chksum, int nlines) {
      return m;
 }
 
-proc make_proc(char *name, uchar *addr) {
+proc make_proc(char *name, unsigned addr) {
      proc p = (proc) scratch_alloc(sizeof(struct _proc));
      p->p_name = name;
-     p->p_addr = (value *) addr;
+     p->p_addr = addr;
 #ifdef PROFILE
      p->p_calls = p->p_rec = p->p_self = p->p_child = 0;
      p->p_parents = p->p_children = NULL;

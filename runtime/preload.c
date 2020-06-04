@@ -86,7 +86,7 @@ static void read_symbols(void) {
      unsigned addr;
      int i, np = 0;
 	  
-     printf("const struct { char *name; unsigned addr; } preload_syms[] = {\n");
+     printf("const struct _proc preload_syms[] = {\n");
 
      for (i = 0; i < nsyms; i++) {
 	  int kind = read_int();
@@ -184,6 +184,8 @@ void load_file(FILE *bfp) {
      nsyms = get_int(t.nsyms);
      nprocs = get_int(t.nprocs);
      start = get_int(t.start);
+
+     printf("#include \"obx.h\"\n\n");
 
      printf("const unsigned preload_seglen[] = {\n");
      printf("    ");
