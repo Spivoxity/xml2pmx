@@ -997,10 +997,10 @@
                pc = pc0 + 1;
                { 
      value *p = valptr(sp[0]);
-     sp -= HEAD-1; sp[BP].a = address(bp); sp[PC].a = address(pc);
+     sp -= HEAD-1; sp[BP].a = address(bp); sp[PC].a = codeaddr(pc);
 
      if (interpreted(p)) {
-          cp = p; pc = pointer(cp[CP_CODE]);
+          cp = p; pc = codeptr(cp[CP_CODE]);
           goto enter;
      }
 
@@ -1075,7 +1075,7 @@
           return;
      }
 
-     sp = bp; pc = pointer(sp[PC]); bp = valptr(sp[BP]); cp = valptr(bp[CP]);
+     sp = bp; pc = codeptr(sp[PC]); bp = valptr(sp[BP]); cp = valptr(bp[CP]);
      do_find_proc;
 #ifdef PROFILE
      prof_exit(cp, ticks);

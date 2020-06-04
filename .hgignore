@@ -32,3 +32,5 @@ runtime/primtab0.o
 Makefile
 runtime/Makefile
 runtime/preload
+runtime/image.o
+runtime/kickstart.o

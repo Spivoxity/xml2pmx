@@ -49,7 +49,7 @@ static void relocate(int size) {
                if ((m & IBIT) == 0)
                     *p = address(dmem + m);
                else
-                    *p = address(imem + (m & ~IBIT));
+                    *p = codeaddr(imem + (m & ~IBIT));
                break;
           case R_SUBR:
                switch (*p) {
@@ -92,8 +92,7 @@ void load_image(void) {
      nsyms = nprocs;
 
      /* Load the code */
-     imem = (uchar *) scratch_alloc(seglen[S_CODE]);
-     memcpy(imem, preload_imem, seglen[S_CODE]);
+     imem = (uchar *) preload_imem;
 
      /* Load and relocate the data */
      dmem = (uchar *) scratch_alloc(seglen[S_DATA]+seglen[S_BSS]);
