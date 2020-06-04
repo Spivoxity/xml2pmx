@@ -1,5 +1,3 @@
-#include <stddef.h>
-
 const unsigned preload_seglen[] = {
      51488, 19044, 1293560, 1048544,
 };

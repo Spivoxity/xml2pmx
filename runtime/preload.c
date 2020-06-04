@@ -232,7 +232,6 @@ int main(int argc, char *argv[]) {
           exit(1);
      }
      
-     printf("#include <stddef.h>\n\n");
      load_file(fp);
      return 0;
 }
