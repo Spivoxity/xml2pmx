@@ -12,7 +12,20 @@ import: $(SOURCE)
 $(INTERP): %: $(OBCDIR)/runtime/%; cp $< $@
 $(PRIMS): %: $(OBCDIR)/lib/%; cp $< $@
 
+update: image.c
+
+image.c: ../src/xml2pmx.x preload
+	./preload $< >$@
+
+../src/xml2pmx.x: force
+	$(MAKE) -C $(@D) $(@F)
+
+preload: preload.o
+	gcc $(CFLAGS) $^ -o $@
+
+CFLAGS = -I ..
+
 pristine: force
-	rm -f $(SOURCE)
+	rm -f $(SOURCE) image.c
 
 force:

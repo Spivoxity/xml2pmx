@@ -64,6 +64,9 @@ union value {
 #define address(p) ((word) (ptrtype) (p))
 #define ptrcast(t, a) ((t *) (ptrtype) (a))
 
+#define codeaddr(p) ((p) - imem)
+#define codeptr(v) (imem + (v).a)
+
 typedef struct _proc *proc;
 typedef struct _module *module;
 typedef struct _arc *arc;
@@ -74,7 +77,7 @@ typedef uint64_t counter;
 
 struct _proc {
      const char *p_name;	/* Procedure name */
-     value *p_addr;		/* Address of descriptor in data space */
+     unsigned p_addr;		/* Address of descriptor in dmem */
 #ifdef PROFILE
      int p_index;		/* Position in listing */
      unsigned p_calls;		/* Call count */
@@ -127,7 +130,7 @@ EXTERN word dynstub;
 
 EXTERN int nmods, nprocs, nsyms;
 EXTERN module *modtab;
-EXTERN proc *proctab;
+EXTERN struct _proc *proctab;
 
 extern struct primdef {
      char *p_name;
@@ -236,9 +239,10 @@ void dltrap(value *sp);
 
 /* load_file -- load a file of object code */
 void load_file(FILE *bfp);
+void load_image(void);
 
 module make_module(char *name, uchar *addr, int chsum, int nlines);
-proc make_proc(char *name, uchar *addr);
+proc make_proc(char *name, unsigned addr);
 void make_symbol(const char *kind, char *name, uchar *addr);
 
 void panic(const char *, ...);
@@ -250,7 +254,7 @@ void rterror(int num, int line, value *bp);
 void stkoflo(value *bp);
 #define liberror(msg) error_stop(msg, 0, bp, NULL)
 
-proc find_symbol(value *p, proc *table, int nelem);
+proc find_symbol(value *p, struct _proc *table, int nelem);
 #define find_proc(cp) find_symbol(cp, proctab, nprocs)
 #define find_module(cp) ((module) find_symbol(cp, (proc *) modtab, nmods))
 

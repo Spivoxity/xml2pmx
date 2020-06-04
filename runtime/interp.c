@@ -157,7 +157,7 @@ static inline void putlong(value *v, longint x) {
 /* interp -- main loop of the interpreter */
 void interp(value *sp0) {
      register value *cp = valptr(sp0[CP]);
-     uchar *pc = pointer(cp[CP_CODE]);
+     uchar *pc = codeptr(cp[CP_CODE]);
      register uchar *pc0 = NULL;
      register value *sp = sp0;
      register uchar ir = 0;
