@@ -330,69 +330,9 @@ static char *profout;
 static const char *dumpname = "obprof.out";
 #endif
 
-static void usage(void) {
-#ifdef PROFILE
-     fprintf(stderr, 
-	     "Usage: %s [-g] [-pl] [-o file] program [arg ...]\n", 
-	     progname);
-#else
-     fprintf(stderr, "Usage: %s program [arg ...]\n", progname);
-#endif
-     fflush(stderr);
-     _exit(1);
-}
-
 #ifdef JTEST
 static mybool tflag = 0;
 #endif
-
-/* read_flags -- interpret flags */
-static void read_flags(void) {
-     for (;;) {
-	  argc--; argv++;
-	  if (argc == 0 || argv[0][0] != '-') return;
-
-	  if (strcmp(argv[0], "--") == 0) {
-	       argc--; argv++;
-	       return;
-	  } else if (strcmp(argv[0], "-d") == 0) {
-	       dflag++;
-	  } else if (strcmp(argv[0], "-v") == 0) {
-	       fprintf(stderr, "%s\n", version);
-	       exit(0);
-	  }
-#ifdef PROFILE
-	  else if (argc >= 2 && strcmp(argv[0], "-o") == 0) {
-	       profout = argv[1];	
-	       argc--; argv++;
-	  } else if (strcmp(argv[0], "-g") == 0) {
-	       gflag = TRUE;
-	  } else if (strcmp(argv[0], "-l") == 0 
-		     || strcmp(argv[0], "-pl") == 0) {
-	       lflag = TRUE;
-	  }
-#endif
-#ifdef TRACE
-	  else if (strcmp(argv[0], "-q") == 0) {
-	       qflag++;
-	  }
-#endif
-#ifdef OBXDEB
-	  else if (argc >= 2 && strcmp(argv[0], "-p") == 0) {
-	       debug_socket = argv[1];
-	       argc--; argv++;
-	  }
-#endif
-#ifdef JTEST
-          else if (strcmp(argv[0], "-t") == 0) {
-               tflag++;
-          }
-#endif
-	  else {
-	       usage();
-	  }
-     }
-}
 
 #ifdef PROFILE
 static void dump_lcounts(void) {
@@ -468,70 +408,13 @@ void NORETURN error_exit(int status) {
      exit(status);
 }
 
-/* The interpreter can be invoked in three ways:
-   (i)   Explicitly as "obx [flags] bytefile args"
-
-   (ii)  Via a #! script as "obx bytefile args"
-         or "bytefile bytefile args" under some Unixes
-
-   (iii) In a glued-together executable as "bytefile args"
-
-   Following the example of CAML Light, we recognize (iii) by seeing
-   if argv[0] names a bytefile that does not begin with #!.  In that
-   case, we read that file for the bytecodes, and the program's args
-   follow immediately; otherwise, we look for flags and the name of
-   the bytefile before the program's args.  In either case, we must be
-   prepared to search the shell path to find the bytefile. 
-
-   These rules are modified a bit if a custom file is built for
-   profiling: in that case, we look for switches even in case (iii). */
-
 int main(int ac, char *av[]) {
-     FILE *fp;
-     char *codefile;
-
-#ifndef M64X32
-     if (sizeof(uchar *) != 4) panic("Bad pointer size");
-#endif
-
      argc = ac; argv = av;
      progname = argv[0];
 
-     /* Read the command line first to handle -v */
-     codefile = search_path(argv[0]);
-     if (codefile != NULL && custom_file(codefile)) {
-#ifdef PROFILE
-	  char *prog = argv[0];
-	  read_flags();
-	  /* Fill the program name back in as argv[0] */
-	  argc++; argv--;
-	  argv[0] = prog;
-#endif
-     } else {
-	  read_flags();
-	  if (argc < 1) usage();
-	  codefile = search_path(argv[0]);     
-     }
-
-#ifdef OBXDEB
-     /* Now connect to the debugger process */
-     debug_init();
-#endif
-
-     if (codefile == NULL) panic("can't find %s", argv[0]);
-
      gc_init();
-
-#ifdef JIT
-     vm_debug = dflag;
-     interpreter = wrap_prim(jit_trap);
-#else
      interpreter = wrap_prim(interp);
-#endif
      dyntrap = wrap_prim(dltrap);
-#ifdef USEFFI
-     dynstub = wrap_prim(dlstub);
-#endif
 
 #ifdef M64X32
      /* Allocate ob_res and statlink in 32-bit addressible storage */
@@ -539,38 +422,7 @@ int main(int ac, char *av[]) {
      _stat = (value **) scratch_alloc(sizeof(value *));
 #endif
 
-     fp = fopen(codefile, "rb");
-     if (fp == NULL) panic("can't open %s", codefile);
-     load_file(fp);
-     fclose(fp);
-
-#ifdef TRACE
-     if (dflag) dump();
-     if (qflag) exit(0);
-#endif
-
-#ifdef JTEST
-     if (tflag) {
-          jit_test();
-          exit(0);
-     }
-#endif
-
-#ifdef PROFILE
-     if (nprocs == 0) 
-	  panic("no symbol table in object file");
-
-     prof_init();
-#endif	  
-
-#ifdef OBXDEB
-     debug_break(NULL, NULL, NULL, "ready");
-#endif
-#ifdef DEBUG
-     if (dflag)
-	  printf("Starting program at address %ld\n",
-                 (long) ((uchar *) entry - dmem));
-#endif
+     load_image();
      run(entry);
      xmain_exit(0);
 }

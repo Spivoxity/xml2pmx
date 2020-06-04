@@ -236,6 +236,7 @@ void dltrap(value *sp);
 
 /* load_file -- load a file of object code */
 void load_file(FILE *bfp);
+void load_image(void);
 
 module make_module(char *name, uchar *addr, int chsum, int nlines);
 proc make_proc(char *name, uchar *addr);

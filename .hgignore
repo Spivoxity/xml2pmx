@@ -31,3 +31,4 @@ obnc
 runtime/primtab0.o
 Makefile
 runtime/Makefile
+runtime/preload

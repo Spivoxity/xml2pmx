@@ -5,25 +5,24 @@ PLATFLAGS = @PLATFLAGS@
 EXEEXT = @EXEEXT@
 ## End of config
 
-all: obx
+all: xml2pmx$(EXEEXT)
 
-OBX = gc.o interp.o loader.o support.o xmain.o dynlink.o \
+OBX = gc.o interp.o kickstart.o support.o xmain.o dynlink.o \
 	Args.o Builtin.o Files.o primtab0.o wrapper.o
 
 interp.o: action.c
 
 xmain.o: CFLAGS += -DREVID=\"xml2pmx\" -Dmain=xmain
 
-obx$(EXEEXT): $(OBX)
+xml2pmx$(EXEEXT): $(OBX) image.o
 	gcc $(CFLAGS) $(PLATFLAGS) $^ -o $@
-	strip $@
 
 %.o: %.c
 	gcc $(CFLAGS) -c $< -o $@
 
 CFLAGS = -std=c90 -Wall -pedantic -O2 -fno-strict-aliasing -I ..
 
-import pristine: force
+update import pristine: force
 	make -f Makefile.import $@
 
 clean: force
