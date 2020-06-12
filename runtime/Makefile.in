@@ -3,6 +3,7 @@
 ## Config stuff:
 PLATFLAGS = @PLATFLAGS@
 EXEEXT = @EXEEXT@
+CC = @CC@
 ## End of config
 
 all: xml2pmx$(EXEEXT)
@@ -15,12 +16,9 @@ interp.o: action.c
 xmain.o: CFLAGS += -DREVID=\"xml2pmx\" -Dmain=xmain
 
 xml2pmx$(EXEEXT): $(OBX) image.o
-	gcc $(CFLAGS) $(PLATFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $(PLATFLAGS) $^ -o $@
 
-%.o: %.c
-	gcc $(CFLAGS) -c $< -o $@
-
-CFLAGS = -std=c90 -Wall -pedantic -O2 -fno-strict-aliasing -I ..
+CFLAGS = -Wall -O2 -fno-strict-aliasing -I ..
 
 update import pristine: force
 	make -f Makefile.import $@

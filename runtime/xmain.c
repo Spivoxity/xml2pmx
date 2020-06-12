@@ -245,27 +245,6 @@ static void run(value *prog) {
      primcall(prog, sp);
 }
 
-mybool custom_file(char *name) {
-     char buf[4];
-     FILE *fp;
-     int nread;
-     mybool result;
-
-     fp = fopen(name, "rb");
-     if (fp == NULL) return FALSE;
-     fseek(fp, - (long) sizeof(trailer), SEEK_END);
-     nread = fread(buf, 1, 4, fp);
-     if (nread < 4 || strncmp(buf, MAGIC, 4) != 0)
-	  result = FALSE;
-     else {
-	  fseek(fp, 0, SEEK_SET);
-	  nread = fread(buf, 1, 2, fp);
-	  result = (nread == 2 && strncmp(buf, "#!", 2) != 0);
-     }
-     fclose(fp);
-     return result;
-}
- 
 #define argc saved_argc
 #define argv saved_argv
 

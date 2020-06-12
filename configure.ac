@@ -1,3 +1,5 @@
+# configure.ac for XML2PMX
+
 AC_INIT(xml2pmx, 2020-06-04, rdt@cs.queensu.ca)
 AC_CONFIG_SRCDIR(runtime/obx.h)
 AC_CONFIG_AUX_DIR(scripts)
@@ -6,11 +8,20 @@ AC_CONFIG_HEADERS(platform.h)
 
 AC_CANONICAL_HOST
 
+AC_PROG_CC
+AC_C_CONST
+AC_C_BIGENDIAN
+AC_C_INLINE
+AC_C_INDEXED_JUMPS
+AC_C_UNUSED
+AC_C_USED
+AC_C_NORETURN
+AC_FIND_PAGESIZE
+
 FIXUP=cat
 
 case $host in
   *-*-linux-*)
-    AC_DEFINE(LINUX, 1, [Define for Linux])
     AC_DEFINE(HAVE_MMAP, 1, [Define if mmap available]);;
   *-*-mingw*|*-*-cygwin)
     AC_DEFINE(WINDOWS, 1, [Define to enable hacks for Windows])
