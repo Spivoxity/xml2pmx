@@ -18,7 +18,7 @@ xmain.o: CFLAGS += -DREVID=\"xml2pmx\" -Dmain=xmain
 xml2pmx$(EXEEXT): $(OBX) image.o
 	$(CC) $(CFLAGS) $(PLATFLAGS) $^ -o $@
 
-CFLAGS = -Wall -O2 -fno-strict-aliasing -I ..
+CFLAGS = -Wall -O2 -I ..
 
 update import pristine: force
 	make -f Makefile.import $@
@@ -32,4 +32,4 @@ force:
 
 ###
 
-$(OBX): config.h exec.h keiko.h obcommon.h obx.h ../platform.h
+$(OBX): exec.h keiko.h obcommon.h obx.h ../config.h

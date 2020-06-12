@@ -4,7 +4,7 @@ AC_INIT(xml2pmx, 2020-06-04, rdt@cs.queensu.ca)
 AC_CONFIG_SRCDIR(runtime/obx.h)
 AC_CONFIG_AUX_DIR(scripts)
 AC_CONFIG_FILES(Makefile runtime/Makefile)
-AC_CONFIG_HEADERS(platform.h)
+AC_CONFIG_HEADERS(config.h)
 
 AC_CANONICAL_HOST
 
