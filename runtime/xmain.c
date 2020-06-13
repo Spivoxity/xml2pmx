@@ -28,6 +28,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define main xmain
+
 #define EXTERN
 #include "obx.h"
 #include "keiko.h"
