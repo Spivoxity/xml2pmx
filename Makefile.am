@@ -1,6 +1,6 @@
 SUBDIRS = runtime
 
-MYTESTS = ActorPreludeSample BeetAnGeSample embracable \
+MYTESTS = p77 ActorPreludeSample BeetAnGeSample embracable \
 	k545_korr25_orig MahlFaGe4Sample SchbAvMaSample Telemann
 
 ECHO = /bin/echo
