@@ -78,11 +78,11 @@
 /* Build id for runtime */
 #undef REVID
 
+/* The size of `int *', as computed by sizeof. */
+#undef SIZEOF_INT_P
+
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
-
-/* Define if unaligned loads and stores work */
-#undef UNALIGNED_MEM
 
 /* Attribute for unused variables */
 #undef UNUSED

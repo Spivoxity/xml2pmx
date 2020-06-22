@@ -38,3 +38,5 @@ runtime/.deps
 config.h
 config.h.in~
 stamp-h1
+Makefile.in
+runtime/Makefile.in

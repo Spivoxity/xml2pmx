@@ -1,17 +1,3 @@
-OBCDIR = ~/src/obc-3.1
-
-INTERP = action.c dynlink.c exec.h gc.c interp.c keiko.h \
-	loader.c obcommon.h obx.h primtab.h support.c xmain.c
-
-PRIMS = Args.c Builtin.c Files.c
-
-SOURCE = $(INTERP) $(PRIMS)
-
-import: $(SOURCE)
-
-$(INTERP): %: $(OBCDIR)/runtime/%; cp $< $@
-$(PRIMS): %: $(OBCDIR)/lib/%; cp $< $@
-
 update: image.c
 
 image.c: ../src/xml2pmx.x preload
@@ -23,6 +9,7 @@ image.c: ../src/xml2pmx.x preload
 preload: preload.o
 	gcc $(CFLAGS) $^ -o $@
 
+CC = gcc
 CFLAGS = -I ..
 
 pristine: force
