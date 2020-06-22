@@ -91,7 +91,7 @@ TYPE
 				kstring: ARRAY 16 OF CHAR;   (* Ki statement in PMX for transposition *)
 			END;  
 	DirectionDesc = RECORD  (* data structure for directions *)
-				part, staff, measure, note, lastnote, nextnote, nextvoice, voice: LONGINT;   (* voice ? implizit �ber lastnote definiert *)
+				part, staff, measure, note, lastnote, nextnote, nextvoice, voice: LONGINT;   (* voice ? implizit ueber lastnote definiert *)
 				before: BOOLEAN;  
 				placement: CHAR;   (* "h" or  "l" for above and below *)
 				dirtype: CHAR;   (* words, metronome, dynamics, wedge= hairpin, pedal, other *)
@@ -150,7 +150,7 @@ TYPE
 				duration, keys: ARRAY 27 OF INTEGER;
 				(* divisions : ARRAY 27 OF INTEGER;  *)
 				dur : INTEGER; (* measure actual length of a measure *)
-				clefchange : ARRAY 27 OF CHAR; (* Mビz 2018 *)
+				clefchange : ARRAY 27 OF CHAR; (* Maerz 2018 *)
 				        relevant : ARRAY 27 OF BOOLEAN;
 			END;  
 	CopyClef = RECORD 
@@ -200,10 +200,10 @@ VAR
 	stavesfound: BOOLEAN;  
 	partlabel: ARRAY 27 OF ARRAY 5 OF CHAR;  
 	directions: POINTER TO ARRAY 2000 OF ARRAY 5 OF DirectionDesc;  
-	maxdirtype: ARRAY 2000 OF LONGINT;   (* vorlブfig, nur zum Daten sammeln. *)
+	maxdirtype: ARRAY 2000 OF LONGINT;   (* vorlaeufig, nur zum Daten sammeln. *)
 	attributes: ARRAY 30 OF AttributesDesc;  
 	partstaff: ARRAY 30 OF ARRAY 2 OF LONGINT;  
-	(*	notes: ARRAY 30 OF ARRAY 2 OF ARRAY 500 OF ARRAY 64 OF NoteDesc;   nderung wegen voice numerierung *)
+	(*	notes: ARRAY 30 OF ARRAY 2 OF ARRAY 500 OF ARRAY 64 OF NoteDesc;   Aenderung wegen voice numerierung *)
 	maxnote, maxnote0, maxnote1, minnote0, minnote1, minnote: ARRAY 30 OF ARRAY 3 OF ARRAY 400 OF LONGINT;  
 	(* number of last note in part/staff/measure *)
 	measures: POINTER TO ARRAY 400 OF MeasureDesc;  
@@ -822,7 +822,7 @@ END PMXDuration;
 				m := n.next;  
 				REPEAT m := m.next 
 				UNTIL m.tagname = eonotetag;  (* m ist last Tag of note *)
-				n.next := m.next; (* lгcht komplette Note von n.next bis zum nツhsten eonotetag. *) 
+				n.next := m.next; (* loescht komplette Note von n.next bis zum naechsten eonotetag. *) 
 			ELSE 
 				n := n.next;    
 				
@@ -913,7 +913,7 @@ END PMXDuration;
 			END;
 					(* delete slur before gracenote *)
 			IF (7 IN outputset) & (Note.grace =  0) OR ~(7 IN outputset) (* option control via outputset 24.04.2017*)
-			 THEN  (* nderung 18.04.2017*)
+			 THEN  (* Aenderung 18.04.2017*)
 					IF (Note.slur[0,1] = "(")  THEN  (* 3*)
 									Strings.Append( pmxnote, Note.slur [0]);  
 								END;
@@ -1022,7 +1022,7 @@ END PMXDuration;
 			maxnotelastmeasure := maxnote0[part,staff,measure-1];
 			IF voice = 1 THEN	maxnotelastmeasure := maxnote1[part,staff,measure-1]; END;
 IF (7 IN outputset) & ( ( note = 1 ) & (Note.grace = 0) & (  notes[ps,voice,measure,maxnotelastmeasure].grace= 0 ) 
-			OR  ( note >1 ) &( Note.grace = 0) & (notes[ps,voice,measure,note - 1].grace = 0 ) ) (* nderung wg. Don 17022017 *)
+			OR  ( note >1 ) &( Note.grace = 0) & (notes[ps,voice,measure,note - 1].grace = 0 ) ) (* Aenderung wg. Don 17022017 *)
 				OR ~(7 IN outputset)
 				THEN   (* end of slur directly after gracenote not allowed  *) (* Blinder Versuch 7 statt 5 *)
 
@@ -1084,7 +1084,7 @@ IF (7 IN outputset) & ( ( note = 1 ) & (Note.grace = 0) & (  notes[ps,voice,meas
 				Out.String( "cleffx" );  Out.Char( Note.clefchanged );  Out.Char("|"); Out.Char( Note.clef ); 
 		ELSE
 				Out.String( "clef change after last note "); Out.Int(maxinote,5); 
-						(* activated 14. Mビz 2018 , verschiebt clefchange vom Ende des Taktes vor  die erste Note dwes folgenden Taktes*)
+						(* activated 14. Maerz 2018 , verschiebt clefchange vom Ende des Taktes vor  die erste Note dwes folgenden Taktes*)
 	
               measures[measure + 1].clefchange[ps] := Note.clefchanged;
               
@@ -1147,7 +1147,7 @@ END;
 	(*		IF Note.blind = "b" THEN Strings.AppendCh( pmxnote, "b" );  END;   (* 18*)  obsolete 15.01.2017 *)
 			
 			Strings.AppendCh( pmxnote, BLANK );  
-			IF (Note.clefchanged # 0X) THEN  (* 16*) (* clef change on the fly, activated 14. Mビz 2018 *)
+			IF (Note.clefchanged # 0X) THEN  (* 16*) (* clef change on the fly, activated 14. Maerz 2018 *)
 				(*	IF note < maxnote[part,staff,measure] THEN *)
 				Strings.Append( pmxnote, " C" );  Strings.AppendCh( pmxnote, Note.clefchanged );  
 				Strings.AppendCh( pmxnote, BLANK );  
@@ -1179,7 +1179,7 @@ END;
 		Out.String("repeat"); Out.String(notes[ps, voice, measure, note].repeat);
 	END; *)	
 		(* "maxnote" is the last note in part/staff/measure, minnote is the first note in part/staff/measure *)
-		(*	IF ( note = maxnote[part, staff, measure]  )*)  (* nderung 22.12.2015: introduce voice dependence *)
+		(*	IF ( note = maxnote[part, staff, measure]  )*)  (* Aenderung 22.12.2015: introduce voice dependence *)
 		(* "maxnote" is the last note in part/staff/measure, minnote is the first note in part/staff/measure *)
 		IF (note = maxnote[part, staff, measure]) OR ((note = maxnote0[part, staff, measure]) & (voice = 0)) OR 
 		    ((note = maxnote1[part, staff, measure]) & (voice = 1))
@@ -1288,7 +1288,7 @@ END;
 					Files.Write( W, NL );  
 					IF ( voice = voicefrom ) & ( measures[measure].clefchange[ps] # 0X)  THEN 
 
-						(***    Mビz 2018       ********************Transfer clefchange  from last note to new measure! ****************************************************)
+						(***    Maerz 2018       ********************Transfer clefchange  from last note to new measure! ****************************************************)
 						 						
 							Files.Write( W, "C"); Files.Write(W,  measures[measure].clefchange[ps]);  Files.Write(W,BLANK);
 
@@ -1510,7 +1510,7 @@ END;
 				END;  
 			END;  
 			Strings.AppendCh( pmxbeam, c );  
-			IF (j = "j") (* neuer Code f�r joined beams *)
+			IF (j = "j") (* neuer Code fuer joined beams *)
 			THEN 
 				Strings.AppendCh( pmxbeam, j );  
 				IF c = "[" THEN Strings.AppendCh( pmxbeam, "f" );  Strings.AppendCh( pmxbeam, BLANK );  END;  
@@ -1581,7 +1581,7 @@ END;
 				ELSE cs := "A"; 
 		END;
 		b.FindAtt( n, "placement", placement );  
-		IF (type # "continue") THEN (* gibt es das �berhapt? *)
+		IF (type # "continue") THEN (* gibt es das ueberhapt? *)
 
 			COPY( BLANK, pmxslur );  
 			IF (type = "start") THEN c := "(";  
@@ -2111,13 +2111,13 @@ END;
 				WHILE (m.next # NIL ) & (m.tagname # notetag) DO 
 		(*		 Out.Ln(); Out.String("backup-m");					b.OutTag(m,FALSE);  *)
 					m := m.next ;
-			 END;  (* hier werden Daten weggelesen, bis zur nツhsten Note *)
+			 END;  (* hier werden Daten weggelesen, bis zur narchsten Note *)
 						                                                                                                        (*   und dann der backup der Note zugeordnet *)
 			(*	IF m.grace > 0 THEN 
 					WHILE 
 						m.grace > 0 DO b.OutTag(m,TRUE); m := m.next; 
 					END; 
-				END;	(* nderung wg ala tiurca grace notes Takt 28 ff *)	   *)                                                                                                     
+				END;	(* Aenderung wg ala tiurca grace notes Takt 28 ff *)	   *)                                                                                                     
 				(* Store backup at next note *) ;  m.backup := SHORT( backup ); (* b.OutTag(m,TRUE); *)
 			END;  
 			
@@ -2226,7 +2226,7 @@ END;
 			
 			IF (n.tagname = attributestag) THEN AttributesPropM( voice01, measure, n );  
 			INC (countattr); END;  
-					(* geハdert 8.1.2016: lastnote -> note *)
+					(* geaendert 8.1.2016: lastnote -> note *)
 			IF (n.tagname = directiontag) THEN DirectionProp( n,voice01 ); 	INC(countdir) ;END;  
 			MeasureProp( measure, n );   (* OutTag( n ); *)
 			n := n.next
@@ -2316,7 +2316,7 @@ INC
 					
 					ELSIF (n.tagname = "<words>") THEN  (* 3 .2*)
 						IF (placement = "above") OR (placement = "") THEN 
-							directions[dirnum, dirtypenr].placement := "h";   (* nderung 19. Mai *)
+							directions[dirnum, dirtypenr].placement := "h";   (* Aenderung 19. Mai *)
 							
 						ELSIF (placement = "below") THEN directions[dirnum, dirtypenr].placement := "l";  
 						END;  
@@ -2397,7 +2397,7 @@ INC
 					IF ( n.lastnote # 0 ) THEN
 							lastclef[ps] := clef;  notes[ps, voice, measure, n.lastnote].clefchanged := clef; 
 					ELSE
-							measures[measure].clefchange[linstaff(nostaves,part,number)] := clef; (* Mビz 2018 *)
+							measures[measure].clefchange[linstaff(nostaves,part,number)] := clef; (* Maerz 2018 *)
 					END;	
 				(*	 Out.Ln();  
 					Out.String( "clefs *******" );  Out.Int( ps, 5 );  Out.Int( voice, 5 );  Out.Int( measure, 5 );  
@@ -2841,7 +2841,7 @@ INC
 
 	PROCEDURE AnalyzeXML2( VAR R: Files.Rider );  
 	(* Decodes MusicXML and stores data in a linked list. *)
-	VAR dummy: ARRAY 256 OF CHAR;  (* geハdert von 128. 28.07.2019 *)
+	VAR dummy: ARRAY 256 OF CHAR;  (* geaendert von 128. 28.07.2019 *)
 		rec, rec1: ARRAY 256 OF CHAR;  
 		
 		tag, endtag, between: ARRAY 256 OF CHAR;  
@@ -2926,7 +2926,7 @@ INC
 					IF (tag = attributestag) THEN attnum := lastattnum;  INC( attnum );  END;  
 					IF (tag = eoattributestag) THEN lastattnum := attnum;  attnum := 0;  END;  
 					(**********************************************************************************)
-					IF (tag = notetag) OR (tag = forwardtag) THEN note := lastnote;  INC( note );  END;   (* nderung27. April *)
+					IF (tag = notetag) OR (tag = forwardtag) THEN note := lastnote;  INC( note );  END;   (* Aenderung27. April *)
 					IF (tag = eonotetag) THEN lastnote := note;  note := 0 END;  
 					(**********************************************************************************)
 					IF (tag = "<forward>") THEN (* <forward ist ein blind rest> *)
@@ -2951,7 +2951,7 @@ INC
 		Out.Ln();  part := 1;  
 		WHILE part <= maxpart DO 
 			Out.Ln();  Out.String( "part : number of staves : " );  Out.Int( part, 5 );  Out.Int( staves[part], 5 );  
-			nostaves := nostaves + staves[part];   (* nderung 5.11.2015 *)
+			nostaves := nostaves + staves[part];   (* Aenderung 5.11.2015 *)
 			INC( part );  
 		END;  
 	
