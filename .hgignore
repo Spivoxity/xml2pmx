@@ -23,7 +23,6 @@ Telemann.pmx
 Telemann.pmxprep
 config.log
 config.status
-configure
 platform.h
 xml2pmx
 src/Strings1.k
@@ -38,5 +37,4 @@ runtime/.deps
 config.h
 config.h.in~
 stamp-h1
-Makefile.in
-runtime/Makefile.in
+runtime/preload.o

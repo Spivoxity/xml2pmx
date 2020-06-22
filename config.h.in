@@ -48,6 +48,9 @@
 /* Define to enable hacks for MacOS X */
 #undef MACOS
 
+/* Magic number for executables */
+#undef MAGIC
+
 /* Attribute for functions that don't return */
 #undef NORETURN
 
@@ -77,6 +80,9 @@
 
 /* Build id for runtime */
 #undef REVID
+
+/* OBC version signature */
+#undef SIG
 
 /* The size of `int *', as computed by sizeof. */
 #undef SIZEOF_INT_P

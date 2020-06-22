@@ -43,4 +43,7 @@ case $host in
 esac
 AC_SUBST(FIXUP)
 
+AC_DEFINE(MAGIC, "OBCX", [Magic number for executables])
+AC_DEFINE(SIG, 0x00030100, [OBC version signature])
+
 AC_OUTPUT
