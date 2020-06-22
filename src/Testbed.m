@@ -50,7 +50,7 @@ Recently solved 19. 05. 2017
 TYPE LONGINT = INTEGER;
 
 CONST 
-	NL = 0AX;  BLANK = 20X;  TAB = 09X;    CR = 0DX;  measurelimit = 400;  
+	NL = 0AX;  BLANK = 20X;  TAB = 09X;    CR = 0DX;  measurelimit = 1000;  
 TYPE 
 	(* OpenSlurDesc = RECORD
 				id : CHAR;
@@ -162,20 +162,20 @@ TYPE
 VAR 
  lastbase : INTEGER; (* number of main note of a chord *)
    uptomeasure : LONGINT; (* global variable for reducing the number of measures *)
-	notes: POINTER TO ARRAY 27 OF ARRAY 3 OF ARRAY 400 OF
+	notes: POINTER TO ARRAY 27 OF ARRAY 3 OF ARRAY measurelimit OF
           ARRAY 64 OF POINTER TO NoteDesc;
         keytotal : ARRAY 132 OF CHAR;
 	unix: BOOLEAN;  outputcont : ARRAY 16 OF CHAR; outputset : SET;
-	voicemeasure: POINTER TO ARRAY 30 OF ARRAY 500 OF SET;  
+	voicemeasure: POINTER TO ARRAY 30 OF ARRAY measurelimit OF SET;  
 	voiceps: ARRAY 30 OF SET;  
 	voicelimmps: ARRAY 30 OF LONGINT;  
 	vmapps: ARRAY 30 OF ARRAY 5 OF LONGINT;  
-	minvoice, maxvoice: POINTER TO ARRAY 27 OF ARRAY 500 OF LONGINT;  
-	vmap: ARRAY 30 OF ARRAY 500 OF ARRAY 5 OF LONGINT;  
+	minvoice, maxvoice: POINTER TO ARRAY 27 OF ARRAY measurelimit OF LONGINT;  
+	vmap: ARRAY 30 OF ARRAY measurelimit OF ARRAY 5 OF LONGINT;  
 	
 	clefspec, lastclef: ARRAY 27 OF CHAR;   (*  special clef and valid clef in the actual measure *)
 	
-	voicelimm: ARRAY 30 OF ARRAY 500 OF LONGINT;  
+	voicelimm: ARRAY 30 OF ARRAY measurelimit OF LONGINT;  
 	sout : ARRAY 64 OF CHAR; (* target file path and directory *)
 
 	(* controls#  voices within a staff and measure*)
@@ -183,7 +183,7 @@ VAR
 	ingrace2pmx: LONGINT;  
 	in, out: ARRAY 128 OF CHAR;  
 	lastto, lastfrom: INTEGER;   (* global variable for time progress in measure *)
-	(* clefchangemeasure: ARRAY 27 OF ARRAY 3 OF ARRAY 500 OF ARRAY 4 OF CHAR;  *)
+	(* clefchangemeasure: ARRAY 27 OF ARRAY 3 OF ARRAY measurelimit OF ARRAY 4 OF CHAR;  *)
 	pmxdur: ARRAY 8 OF CHAR;  
 	lastnote: LONGINT;   (* global variable for position of last note *)
 	fi, fo: Files.File;  ri: Files.Rider;  
@@ -203,10 +203,10 @@ VAR
 	maxdirtype: ARRAY 2000 OF LONGINT;   (* vorlaeufig, nur zum Daten sammeln. *)
 	attributes: ARRAY 30 OF AttributesDesc;  
 	partstaff: ARRAY 30 OF ARRAY 2 OF LONGINT;  
-	(*	notes: ARRAY 30 OF ARRAY 2 OF ARRAY 500 OF ARRAY 64 OF NoteDesc;   Aenderung wegen voice numerierung *)
-	maxnote, maxnote0, maxnote1, minnote0, minnote1, minnote: ARRAY 30 OF ARRAY 3 OF ARRAY 400 OF LONGINT;  
+	(*	notes: ARRAY 30 OF ARRAY 2 OF ARRAY measurelimit OF ARRAY 64 OF NoteDesc;   Aenderung wegen voice numerierung *)
+	maxnote, maxnote0, maxnote1, minnote0, minnote1, minnote: ARRAY 30 OF ARRAY 3 OF ARRAY measurelimit OF LONGINT;  
 	(* number of last note in part/staff/measure *)
-	measures: POINTER TO ARRAY 400 OF MeasureDesc;  
+	measures: POINTER TO ARRAY measurelimit OF MeasureDesc;  
 	pmxcontrol: ControlDesc;  
 	accidentaltag, parttag, measuretag, notetag, pitchtag, steptag, octavetag, durationtag, voicetag, dottag, stemtag, cleftag, clefoctavetag, staccatotag: ARRAY 32 OF CHAR;  
 	attributestag, divisionstag, keytag, fifthstag, timetag, beatstag, beattypetag, stavestag, signtag, linetag, typetag, fermatatag, tuplettag: ARRAY 32 OF CHAR;  
