@@ -14,7 +14,7 @@ Also binary bytecode for the program
 
      xml2pmx.x
 
-This bytecode is *concatenated* with the bytecode interpreter to make
+This bytecode is joined with the bytecode interpreter to make
 an executable program: this avoids the problem of configuring one half
 of the program to find the other at runtime.
 
@@ -32,7 +32,7 @@ Also C source for the bytecode interpreter
     gc.c
     interp.c
     keiko.h
-    loader.c
+    kickstart.c
     obcommon.h
     obx.h
     primtab0.c
@@ -41,9 +41,18 @@ Also C source for the bytecode interpreter
     Args.c
     Builtin.c
     Files.c
+    image.c
+
+Also a C program not included when the excutable is built.
+
+    preload.c
+    Makefile.import
+    
+Say 'make -f Makefile.import update' to generate image.c from ../src/xml2pmx.x 
 
 The bytecode interpreter is from release 3.1.0 of OBC, and rebuilding
 of the bytecode file, if necessary, must be done with the same release
 -- bytecode is not portable between releases because the opcodes
 change.  Alternatively, update the source files here from a later
-release.
+release.  Support for preloading of the kind used here is planned for
+release 3.2 of OBC.
