@@ -1,14 +1,21 @@
 # src/Makefile
 
-all:
-
-# Only recompile the program (using installed obc) on 'make update'
-update: xml2pmx.x 
-
+TARGET = ../image.c
 OBJS = MyFiles.k Strings1.k Fifo.k b.k Complete.k Testbed.k
+
+all: $(TARGET)
+
+$(TARGET): xml2pmx.x preload
+	./preload $< >$@
 
 xml2pmx.x: $(OBJS)
 	obc $^ -o $@ 
+
+preload: preload.o
+	gcc $(CFLAGS) $^ -o $@
+
+CC = gcc
+CFLAGS = -I ..
 
 TEST := $(patsubst %,test-%,$(notdir $(wildcard ../test/*.xml)))
 
@@ -22,12 +29,12 @@ test-%.xml: force
 	obc -c -x $< -o $@
 
 clean: force
-	rm -f *.k
+	rm -f *.k *.o preload
+	rm -f xml2pmx.x
 
-realclean: force
+realclean: clean
 
 spotless: realclean
-	rm -f xml2pmx.x
 
 force:
 

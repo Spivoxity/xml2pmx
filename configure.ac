@@ -3,8 +3,8 @@
 AC_INIT(xml2pmx, 2020-06-22a, rdt@cs.queensu.ca)
 AC_CONFIG_AUX_DIR(scripts)
 AM_INIT_AUTOMAKE([-Wall foreign])
-AC_CONFIG_SRCDIR(runtime/obx.h)
-AC_CONFIG_FILES(Makefile runtime/Makefile)
+AC_CONFIG_SRCDIR(obx.h)
+AC_CONFIG_FILES(Makefile)
 AC_CONFIG_HEADERS(config.h)
 AC_DEFINE(REVID, "xml2pmx", [Build id for runtime])
 
