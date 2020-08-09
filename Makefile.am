@@ -10,8 +10,8 @@ ECHO = /bin/echo
 check:
 	for f in $(MYTESTS); do \
 	    $(ECHO) -n "$$f: "; \
-	    if runtime/xml2pmx test/$$f.xml $$f.pmx a 0 >/dev/null \
+	    if ./xml2pmx test/$$f.xml $$f.pmx a 0 >/dev/null \
 		    && ($(FIXUP) <$$f.pmx | cmp test/$$f.exp -); then \
 		$(ECHO) "PASS"; else $(ECHO) "FAIL"; fi; \
-	    rm -f $$f.pmxprep $$f.pmx; \
+	    rm -f $$f.pmx; \
 	done
