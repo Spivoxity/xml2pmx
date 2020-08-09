@@ -100,9 +100,12 @@ PROCEDURE Register*(f: File);
 BEGIN
 END Register;
 
+(* Unix system call *)
+PROCEDURE unlink(name: ARRAY OF CHAR): INTEGER IS "unlink";
+
 PROCEDURE Delete*(name: ARRAY OF CHAR; VAR res: INTEGER);
 BEGIN
-  res := -1
+  res := unlink(name)
 END Delete;
 
 END MyFiles.

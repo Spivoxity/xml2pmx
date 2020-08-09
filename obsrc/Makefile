@@ -32,10 +32,6 @@ clean: force
 	rm -f *.k *.o preload
 	rm -f xml2pmx.x
 
-realclean: clean
-
-spotless: realclean
-
 force:
 
 ###
