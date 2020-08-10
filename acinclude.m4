@@ -1,8 +1,8 @@
 dnl
-dnl aclocal.m4
+dnl acinclude.m4 for OBC and friends
 dnl 
 dnl This file is part of the Oxford Oberon-2 compiler
-dnl Copyright (c) 2006--2016 J. M. Spivey
+dnl Copyright (c) 2006--2020 J. M. Spivey
 dnl All rights reserved
 dnl
 dnl Redistribution and use in source and binary forms, with or without
@@ -104,7 +104,8 @@ AC_DEFUN([AC_FIND_PAGESIZE],
 	  /* No newline here, in case a CRLF creeps in and cygwin chokes */
 	  fprintf(f, "%d", getpagesize());
 	  exit(0);
-	}], ac_cv_pagesize=`cat conftestval`, ac_cv_pagesize=4096)])
+	}], ac_cv_pagesize=`cat conftestval`,
+        ac_cv_pagesize=4096, ac_cv_pagesize=4096)])
     AC_DEFINE_UNQUOTED(PAGESIZE, $ac_cv_pagesize, [Page size])
     AC_SUBST(PAGESIZE, $ac_cv_pagesize)
 
