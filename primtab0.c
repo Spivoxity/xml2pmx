@@ -57,7 +57,7 @@ void P_fflush(value *bp) {
 }
 
 void P_obgetc(value *bp) {
-     ob_res.i = obgetc(ptrcast(void, get_long(&bp[HEAD]))); 
+     ob_res.i = fgetc(ptrcast(void, get_long(&bp[HEAD]))); 
 }
 
 void P_ungetc(value *bp) {
