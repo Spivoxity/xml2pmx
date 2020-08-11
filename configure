@@ -4938,7 +4938,7 @@ $as_echo "#define HAVE_INDEXED_JUMPS 1" >>confdefs.h
 # M64X32 allows Keiko programs (with 4-byte pointers) to run on machines
 # with a 64-bit address space; it depends on allocating all storage used
 # by the program in the bottom 4GB of the address space.  This works well
-# on x86_64.
+# on x86_64.  See the code and commentary in grab_chunk(gc.c)
 # The cast to long int works around a bug in the HP C Compiler
 # version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
 # declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
@@ -4978,7 +4978,10 @@ $as_echo "#define M64X32 1" >>confdefs.h
 
 fi
 
+# Filter used to compare output of regression tests: special for Windows
 FIXUP=cat
+
+# These host-specific defines affect only the allocation code in gc.c
 case $host in
   *-*-mingw*|*-*-cygwin)
 
