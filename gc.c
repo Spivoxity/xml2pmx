@@ -105,6 +105,15 @@ static const char *assert_fmt = "*assertion %s failed on line %d of file %s";
    constants that need changing if that is not true.  We also assume
    that a page index occupies exactly one page (see below). */
 
+/* Each host must have an implementation of grab_chunk(size), which
+   allocates a number of whole pages of memory addressible with a
+   32-bit address.  On 32-bit unix variants, this amounts to calling
+   mmap(); on 64-bit machines, the flag MAP_32BIT does the job if
+   available.  Special provision must be made for MacOS X, where a
+   specific 'hint' value must be combined with a special linker flag;
+   and for Windows, where mmap is not available, and we must use a
+   different documented (32 bit) or undocumented (64 bit) system call. */
+
 #ifdef HAVE_MMAP
 #include <fcntl.h>
 #include <sys/mman.h>

@@ -26,13 +26,16 @@ AC_C_INDEXED_JUMPS
 # M64X32 allows Keiko programs (with 4-byte pointers) to run on machines
 # with a 64-bit address space; it depends on allocating all storage used
 # by the program in the bottom 4GB of the address space.  This works well
-# on x86_64.
+# on x86_64.  See the code and commentary in grab_chunk(gc.c)
 AC_CHECK_SIZEOF([int *])
 if test $ac_cv_sizeof_int_p = 8; then
   AC_DEFINE(M64X32, 1, [Define for 64-bit runtime with 32-bit pointers])
 fi
 
+# Filter used to compare output of regression tests: special for Windows
 FIXUP=cat
+
+# These host-specific defines affect only the allocation code in gc.c
 case $host in
   *-*-mingw*|*-*-cygwin)
     AC_DEFINE(WINDOWS, 1, [Define to enable hacks for Windows])
