@@ -826,12 +826,11 @@ PROCEDURE FilterTeX*( in: ARRAY OF CHAR;  VAR out: ARRAY OF CHAR );
 	VAR i: LONGINT;  c: CHAR;  
 	BEGIN 
 		Files.Read( R, c );  i := 0;
-		REPEAT IF ~WhiteSpace(c) THEN s[i] := c; INC(i); END; Files.Read(R,c);  		
-	
-		UNTIL R.eof OR ( c = stop );
-		
-		s[i] := c;	s[i+1] := 0X;   
-		
+		WHILE ~R.eof & (c # stop) DO
+                  IF ~WhiteSpace(c) THEN s[i] := c; INC(i); END; 
+                  Files.Read(R,c)
+	        END;
+		s[i] := c; s[i+1] := 0X
 	END ReadUntilTx;  
 	PROCEDURE WhiteSpace ( c : CHAR) : BOOLEAN;
 	VAR ws : BOOLEAN;
