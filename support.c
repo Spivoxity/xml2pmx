@@ -29,6 +29,9 @@
  */
 
 #include "obx.h"
+#include <stdarg.h>
+#include <string.h>
+#include <errno.h>
 
 /* Assorted runtime support routines */
 
@@ -92,11 +95,6 @@ void long_flo(value *sp) {
      put_double(sp, get_long(sp));
 }
 
-void long_zcheck(value *sp) {
-     if (get_long(sp+2) == 0)
-          rterror(E_DIV, sp[0].i, ptrcast(value, sp[1].a));
-}
-
 #ifndef M64X32
 void long_add(value *sp) {
      put_long(sp+2, get_long(sp+2) + get_long(sp));
@@ -121,6 +119,11 @@ void long_cmp(value *sp) {
 
 void long_ext(value *sp) {
      put_long(sp-1, (longint) sp[0].i);
+}
+
+void long_zcheck(value *sp) {
+     if (get_long(sp+2) == 0)
+          runtime_error(E_DIV, sp[0].i, ptrcast(value, sp[1].a), NULL);
 }
 #endif
 
@@ -191,12 +194,12 @@ void flo_trunc(value *sp) {
 
 void flo_zcheck(value *sp) {
      if (sp[2].f == 0.0f)
-          rterror(E_FDIV, sp[0].i, ptrcast(value, sp[1].a));
+          runtime_error(E_FDIV, sp[0].i, ptrcast(value, sp[1].a), NULL);
 }
 
 void dbl_zcheck(value *sp) {
      if (get_double(sp+2) == 0.0)
-          rterror(E_FDIV, sp[0].i, ptrcast(value, sp[1].a));
+          runtime_error(E_FDIV, sp[0].i, ptrcast(value, sp[1].a), NULL);
 }
 #endif
 
@@ -260,59 +263,52 @@ void put_long(value *v, longint x) {
 #endif
 
 /* find_symbol -- find a procedure from its CP. Works for modules too. */
-proc find_symbol(value *p, struct _proc *table, int nelem) {
+proc find_symbol(word p, proc *table, int nelem) {
      int a = 0, b = nelem;
 
-     if (p == NULL) return NULL;
-     if (nelem == 0 || p < (value *) (dmem + table[0].p_addr))
-          return NULL;
+     if (p == 0) return NULL;
+     if (nelem == 0 || p < table[0]->p_addr) return NULL;
 
      /* Binary search */
      /* Inv: 0 <= a < b <= nelem, table[a] <= x < table[b], 
 	where table[nelem] = infinity */
      while (a+1 != b) {
 	  int m = (a+b)/2;
-	  if (p >= (value *) (dmem + table[m].p_addr))
+	  if (table[m]->p_addr <= p)
 	       a = m;
 	  else
 	       b = m;
      }
 
-     return &table[a];
+     return table[a];
 }
 
-#ifdef SPECIALS
-/* Specials for the compiler course */
-
-value *clotab[256];
-int nclo = 0;
-
-int pack(value *code, uchar *env) {
-     unsigned tag, val;
-
-     for (tag = 0; tag < nclo; tag++)
-	  if (clotab[tag] == code) break;
-
-     if (tag == nclo) {
-	  if (nclo == 256) panic("Out of closure tags");
-	  clotab[nclo++] = code;
-     }
-
-     if (env != NULL && (env <= stack || env > stack + stack_size)) 
-	  panic("Bad luck in pack");
-
-     val = (env == NULL ? 0 : env - stack);
-
-     return (tag << 24) | val;
-}
-
-value *getcode(int word) {
-     unsigned tag = ((unsigned) word) >> 24;
-     return clotab[tag];
-}
-
-uchar *getenvt(int word) {
-     unsigned val = ((unsigned) word) & 0xffffff;
-     return (val == 0 ? NULL : stack + val);
-}
+#ifdef WINDOWS
+#ifdef OBXDEB
+#define OBGETC 1
 #endif
+#endif
+
+/* obgetc -- version of getc that compensates for Windows quirks */
+int obgetc(FILE *fp) {
+#ifdef OBGETC
+     /* Even if Ctrl-C is trapped, it causes a getc() call on the console
+	to return EOF. */
+     for (;;) {
+	  int c = getc(fp);
+	  if (c == EOF && intflag && prim_bp != NULL) {
+	       value *cp = valptr(prim_bp[CP]);
+	       debug_break(cp , prim_bp, NULL, "interrupt");
+	       continue;
+	  }
+	  return c;
+     }
+#else
+     return getc(fp);
+#endif
+}
+
+/* get_errno -- fetch the value of errno, for use as a primitive */
+int get_errno(void) {
+     return errno;
+}

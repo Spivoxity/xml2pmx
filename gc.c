@@ -28,9 +28,9 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* Need _GNU_SOURCE for MMAP_32BIT */
-#define _GNU_SOURCE 1
 #include "obx.h"
+#include <string.h>
+#include <stdio.h>
 
 /* Define MULTIBLOCKS to allow splitting of multi-page blocks */
 #undef MULTIBLOCKS
@@ -43,7 +43,7 @@ static mybool debug[256];	/* Debugging flags */
    d - general debugging; 
    l - trace low-level allocator; 
    m - print maps;  
-   s - scribble on freed storage;
+   s - scribble on freed storage (obsolete);
    z - GC on each allocation */
 
 /* Assertions are enabled in all programs if DEBUG is defined */
@@ -102,17 +102,9 @@ static const char *assert_fmt = "*assertion %s failed on line %d of file %s";
 
 /* Most of the manipulations here are done in terms of words, and to
    save brain cells, we assume a word has 32 bits; there are lots of
-   constants that need changing if that is not true.  We also assume
-   that a page index occupies exactly one page (see below). */
+   constants that need changing if that is not true.  */
 
-/* Each host must have an implementation of grab_chunk(size), which
-   allocates a number of whole pages of memory addressible with a
-   32-bit address.  On 32-bit unix variants, this amounts to calling
-   mmap(); on 64-bit machines, the flag MAP_32BIT does the job if
-   available.  Special provision must be made for MacOS X, where a
-   specific 'hint' value must be combined with a special linker flag;
-   and for Windows, where mmap is not available, and we must use a
-   different documented (32 bit) or undocumented (64 bit) system call. */
+#ifndef SEGMEM
 
 #ifdef HAVE_MMAP
 #include <fcntl.h>
@@ -132,8 +124,8 @@ static const char *assert_fmt = "*assertion %s failed on line %d of file %s";
 #endif
 
 static void *grab_chunk(unsigned size) {
-     byte *p;
-     static byte *last_addr = HINT;
+     void *p;
+     static void *last_addr = HINT;
 
 #ifdef MAP_ANONYMOUS
      p = mmap(last_addr, size, PROT_READ|PROT_WRITE, 
@@ -165,7 +157,8 @@ static void *grab_chunk(unsigned size) {
 
 #ifdef M64X32
 /* With thanks to the LuaJIT people */
-typedef long (*ntavm_ptr)(HANDLE, void **, ULONG, size_t *, ULONG, ULONG);
+typedef long (*ntavm_ptr)(void *, void **, unsigned long, size_t *,
+                          unsigned long, unsigned long);
 
 #define NTAVM_ZEROBITS 1
 
@@ -173,7 +166,7 @@ static void *grab_chunk(unsigned size0) {
      static ntavm_ptr ntavm = NULL;
 
      if (ntavm == NULL) {
-          HANDLE module = GetModuleHandleA("ntdll.dll");
+          void *module = GetModuleHandleA("ntdll.dll");
           ntavm = (ntavm_ptr)
                GetProcAddress(module, "NtAllocateVirtualMemory");
      }
@@ -184,11 +177,14 @@ static void *grab_chunk(unsigned size0) {
            MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
      return p;
 }
-#else 
+
+#else
+
 static void *grab_chunk(unsigned size) {
      return VirtualAlloc(NULL, size, MEM_COMMIT|MEM_RESERVE,
 			 PAGE_READWRITE);
 }
+
 #endif
 #endif
 
@@ -209,16 +205,17 @@ static void *get_memory(unsigned size) {
      return p;
 }
 
+/* get_chunk -- grab memory addressible by the garbage collector */
+#define get_chunk(size) pun_memory(get_memory(size))
+
 
 /* SCRATCH ALLOCATOR */
 
-/* Scratch storage is managed quite separately from the heap, since
-   combining the two would gain little efficiency at the expense of a
-   lot of complexity.  We allocate whole pages (e.g. for the page
-   table) on page boundaries. Scratch blocks must be aligned on an
-   8-byte boundary for architectures that don't support unaligned
-   loads and stores of uint64_t, a type that is used for profiling 
-   counts. */
+/* Scratch storage is managed separately from the heap.  We allocate
+  whole pages (e.g. for the page table) on page boundaries. Scratch
+  blocks must be aligned on an 8-byte boundary for architectures that
+  don't support unaligned loads and stores of uint64_t, a type that is
+  used for profiling counts. */
 
 #define SCRATCH_ALIGN 8
 
@@ -233,8 +230,8 @@ static void *get_memory(unsigned size) {
    and wastefully discards it if it is too small to satisfy the next
    memory request. */
 
-static byte *scratch_free = NULL;
-static byte *scratch_limit = NULL;
+static void *scratch_free = NULL;
+static void *scratch_limit = NULL;
 
 void *scratch_alloc(unsigned size) {
      unsigned alloc_size = round_up(size, SCRATCH_ALIGN);
@@ -264,6 +261,79 @@ void *scratch_alloc(unsigned size) {
      return p;
 }
 
+#else // SEGMEM
+
+/* To permit the use of malloc() as the only way of getting storage,
+   we can simulate segmented memory in software.  The key to this is
+   the inlined routine physmap defined in obx.h, which convert a
+   32-bit 'address' into a geniuine native pointer.  It is implicitly
+   used in the macros ptrcast, valptr and pointer by which the
+   interpreter interprets one of these addresses as a pointer.
+
+   A 32-bit address splits as 12 + 20 bits, with a 12-bit segment
+   number, and index into segmap, and a 20-bit offset within the
+   segment.  The segmap array gives the base address (64 bits) for a
+   piece of storage obtained from malloc.  These segments do not have
+   to be contiguous with each other.  We can deal with pieces of
+   memory bigger than 1MB by allocating several slots in segmap to
+   them, and exploit the fact that incrementing virtual addresses will
+   carry from the offset into the segment bits.
+
+   The garbage collector operates entirely within the 'virtual' address
+   space, and completely independently splits the virtual addresses as
+   10 + 10 + 12 bits to access the 'page table'.  Adjust it if you like! */
+
+#include <stdlib.h>
+
+/* scratch_alloc -- allocate storage without making it addressible */
+void *scratch_alloc(unsigned size) {
+     void *p = malloc(size);
+     if (p == NULL) panic("malloc failed");
+     memset(p, 0, size);
+     return p;
+}
+
+void *segmap[NSEGMENTS]; // Base of each segment as a (maybe 64-bit) pointer
+static int nsegs = 1; // Segment 0 used for NULL
+
+/* map_segment -- allocate segment registers */
+word map_segment(void *p, unsigned len) {
+     word base = nsegs * SEGMENT;
+
+     while (nsegs * SEGMENT < base + len) {
+          segmap[nsegs++] = p;
+          p += SEGMENT;
+     }
+                                           
+     return base;
+}
+
+/* get_chunk -- allocate a chunk of storage and make it addressible */
+word get_chunk(unsigned size) {
+     void *p = scratch_alloc(size);
+     return map_segment(p, size);
+}
+
+static word alloc_ptr = 0, alloc_limit;
+
+/* virtual_alloc -- allocate unreclaimable storage that is addressible */
+word virtual_alloc(unsigned size) {
+     word p;
+
+     ASSERT(size < SEGMENT);
+
+     if (alloc_ptr == 0 || alloc_ptr + size > alloc_limit) {
+          alloc_ptr = get_chunk(SEGMENT);
+          alloc_limit = alloc_ptr + SEGMENT;
+     }
+
+     p = alloc_ptr;
+     alloc_ptr += size;
+     return p;
+}
+
+#endif
+
 
 /* BLOCK HEADERS */
 
@@ -272,41 +342,58 @@ void *scratch_alloc(unsigned size) {
    of object, given by the h_objsize field; this makes it possible to
    find the start of an object given a pointer to its interior.  Also,
    heap blocks are given a timestamp that allows us to identify during
-   GC which semispace they belong to. */
+   GC which semispace they belong to. 
+
+   We may as well use 32-bit pointers for headers and allocate the
+   space for them in addressible scratch storage.  This works well
+   except with SEGMEM, where it's going to be faster to use actual
+   pointers. */
+
+#ifndef SEGMEM
+typedef word hdrptr;
+#define hdr(h) ptrcast(header, h)
+#define header_alloc() virtual_alloc(sizeof(header))
+#else
+typedef struct _header *hdrptr;
+#define hdr(h) h
+#define header_alloc() scratch_alloc(sizeof(header))
+#endif
+
+#define voidptr(a) ptrcast(void, a)
 
 typedef struct _header {
-     byte *h_memory;		/* The block itself */
+     word h_memory;		/* The block itself */
      unsigned h_size;		/* Size of block (bytes) */
      unsigned h_objsize;	/* Size of each object (bytes), or 0 if free */
      unsigned h_epoch;		/* Timestamp to identify semispace */
-     struct _header *h_next, *h_prev; /* Adjacent blocks in some list */
+     hdrptr h_next, h_prev;     /* Adjacent blocks in some list */
 } header;
 
 /* Headers can become free when two blocks merge into one, so we keep
    a free list for them and allocate from it when possible */
 
-static header *hdr_free = NULL;
+static hdrptr hdr_free = 0;
 
 /* alloc_header -- create a block header */
-static header *alloc_header(void) {
-     header *h;
+static hdrptr alloc_header(void) {
+     hdrptr h;
 
-     if (hdr_free == NULL) 
-	  h = (header *) scratch_alloc(sizeof(header));
+     if (hdr_free == 0)
+	  h = header_alloc();
      else {
 	  h = hdr_free;
-	  hdr_free = h->h_next;
+	  hdr_free = hdr(h)->h_next;
      }
 
-     h->h_memory = NULL;
-     h->h_size = 0;
-     h->h_objsize = 0;
-     h->h_epoch = 0;
-     h->h_next = h->h_prev = NULL;
+     hdr(h)->h_memory = 0;
+     hdr(h)->h_size = 0;
+     hdr(h)->h_objsize = 0;
+     hdr(h)->h_epoch = 0;
+     hdr(h)->h_next = hdr(h)->h_prev = 0;
      return h;
 }
 
-#define free_header(h) h->h_next = hdr_free; hdr_free = h;
+#define free_header(h) hdr(h)->h_next = hdr_free; hdr_free = h;
 
 /* Each block is linked into one of several doubly-linked lists: there
    are lists of free blocks of various sizes, lists of blocks that are
@@ -314,24 +401,25 @@ static header *alloc_header(void) {
    blocks in use for big objects.  All these lists are given a
    dummy node to simplify pointer manipulations. */
 
-static header *new_list(void) {
-     header *h = alloc_header();
-     h->h_next = h->h_prev = h;
+static hdrptr new_list(void) {
+     hdrptr h = alloc_header();
+     hdr(h)->h_next = hdr(h)->h_prev = h;
      return h;
 }
 
-#define empty(list) ((list)->h_next == (list))
+#define empty(list) (hdr(list)->h_next == (list))
 
-#define insert(hdr, h2)					\
-     h2->h_next = hdr; h2->h_prev = hdr->h_prev;	\
-     hdr->h_prev->h_next = h2; hdr->h_prev = h2;
+#define insert(h, h2)					\
+     hdr(h2)->h_next = h; hdr(h2)->h_prev = hdr(h)->h_prev;     \
+     hdr(hdr(h)->h_prev)->h_next = h2; hdr(h)->h_prev = h2;
 
 #define unlink(h) \
-     h->h_prev->h_next = h->h_next; h->h_next->h_prev = h->h_prev
+     hdr(hdr(h)->h_prev)->h_next = hdr(h)->h_next; \
+     hdr(hdr(h)->h_next)->h_prev = hdr(h)->h_prev
 
 /* Say "for (headers(h, list))" to traverse a cyclic list of headers. */
 #define headers(h, list) \
-     h = list->h_next; h != list; h = h->h_next
+     hdrptr h = hdr(list)->h_next; h != list; h = hdr(h)->h_next
 
 
 /* PAGE TABLE */
@@ -361,43 +449,43 @@ static header *new_list(void) {
 
 #define mask(x, n) ((x) & ((1 << (n)) - 1))
 
-#define top_part(p)  (address(p) >> (BOT_BITS + LOG_PAGESIZE))
-#define bot_part(p)  mask(address(p) >> LOG_PAGESIZE, BOT_BITS)
+#define top_part(p)  ((p) >> (BOT_BITS + LOG_PAGESIZE))
+#define bot_part(p)  mask((p) >> LOG_PAGESIZE, BOT_BITS)
 
 /* Here's the layout of the page table; unused elements of the
    top-level table are all initialized to empty_index, a page full
    of NULLs. */
 
-typedef word page_index[BOT_SIZE];
+typedef hdrptr page_index[BOT_SIZE];
 
 static word page_table[TOP_SIZE];
-static page_index *empty_index;
+static word empty_index;
 
 #define get_header(p) \
-     ptrcast(header, (*ptrcast(page_index, \
-                               page_table[top_part(p)]))[bot_part(p)])
-
-/* page_setup -- make page table entries point to a given header */
-static void page_setup(void *base, unsigned size, header *h) {
-     byte *p;
-
-     ASSERT(size % PAGESIZE == 0);
-
-     for (p = base; p < (byte *) base + size; p += PAGESIZE) {
-	  /* Make sure lower index exists */
-	  if (page_table[top_part(p)] == address(empty_index))
-	       page_table[top_part(p)] = 
-		    address(scratch_alloc(sizeof(page_index)));
-
-          (*ptrcast(page_index, page_table[top_part(p)]))[bot_part(p)]
-               = address(h);
-     }
-}
+     (*ptrcast(page_index, page_table[top_part(p)]))[bot_part(p)]
 
 /* To assist in merging free blocks, we can find the two blocks that
    surround a given block */
-#define left_neighbour(h) get_header(h->h_memory - 1)
-#define right_neighbour(h) get_header(h->h_memory + h->h_size)
+#define left_neighbour(h) get_header(hdr(h)->h_memory - 1)
+#define right_neighbour(h) get_header(hdr(h)->h_memory + hdr(h)->h_size)
+
+/* page_setup -- make page table entries point to a given header */
+static void page_setup(word base, unsigned size, hdrptr h) {
+     ASSERT(size % PAGESIZE == 0);
+
+     for (word p = base; p < base + size; p += PAGESIZE) {
+	  /* Make sure lower index exists */
+	  if (page_table[top_part(p)] == empty_index)
+	       page_table[top_part(p)] = virtual_alloc(sizeof(page_index));
+
+          get_header(p) = h;
+     }
+}
+
+static void init_pagetable(void) {
+     empty_index = virtual_alloc(sizeof(page_index));
+     for (int i = 0; i < TOP_SIZE; i++) page_table[i] = empty_index;
+}
 
 
 /* LOWER-LEVEL ALLOCATOR */
@@ -415,74 +503,91 @@ static void page_setup(void *base, unsigned size, header *h) {
 
 #define BIG_BLOCK 8
 
-static header *free_list[BIG_BLOCK+1];
+static hdrptr free_list[BIG_BLOCK+1];
 static unsigned gencount = 1;	    /* Timestamp */
 
 /* make_free -- add a block to the appropriate free list */
-static void make_free(header *h) {
-     int index = h->h_size/PAGESIZE;
+static void make_free(hdrptr h) {
+     int index = hdr(h)->h_size/PAGESIZE;
 
      if (index > BIG_BLOCK) index = BIG_BLOCK;
 
-     DEBUG_PRINT('l', ("Make free %p %#x (free list %d)\n", 
-		       h->h_memory, h->h_size, index));
+     DEBUG_PRINT('l', ("Make free %#x %#x (free list %d)\n", 
+		       hdr(h)->h_memory, hdr(h)->h_size, index));
 
-     h->h_objsize = 0;
+     hdr(h)->h_objsize = 0;
      insert(free_list[index], h);
 }
 
+#ifdef SEGMEM
+/* contiguous -- test if blocks are physically contiguous */
+#define contiguous(h1, h2) \
+     voidptr(hdr(h1)->h_memory) + hdr(h1)->h_size \
+          == voidptr(hdr(h2)->h_memory)
+#endif
+
+
 /* free_block -- free a block, merging it with its neighbours */
-static header *free_block(header *h, mybool mapped) {
+static hdrptr free_block(hdrptr h, mybool mapped) {
      /* Mapped is true if this memory is being recycled: it's already
         in the page table, but we'll need to zero it. */
 
-     header *prev = left_neighbour(h), *next = right_neighbour(h);
+     hdrptr prev = left_neighbour(h), next = right_neighbour(h);
 
      /* Base and size of area where page table needs updating */
-     void *pg_memory = h->h_memory;
-     unsigned pg_size = (mapped ? 0 : h->h_size);
+     word update_mem = hdr(h)->h_memory;
+     unsigned update_size = (mapped ? 0 : hdr(h)->h_size);
 
 #ifdef TRACE
      if (debug['l']) {
-	  printf("Freeing block at %p, size %#x\n", 
-		 h->h_memory, h->h_size);
+	  printf("Freeing block at %#x, size %#x\n", 
+		 hdr(h)->h_memory, hdr(h)->h_size);
 
-	  if (prev == NULL) 
+	  if (prev == 0) 
 	       printf("prev=null, "); 
 	  else 
-	       printf("prev=%p, ", prev->h_memory);
+	       printf("prev=%#x, ", hdr(prev)->h_memory);
 
-	  if (next == NULL) 
+	  if (next == 0) 
 	       printf("next=null\n"); 
 	  else 
-	       printf("next=%p\n", next->h_memory);
+	       printf("next=%#x\n", hdr(next)->h_memory);
      }
 #endif
 
-     if (mapped) memset(h->h_memory, 0, h->h_size);
+     if (mapped) memset(voidptr(hdr(h)->h_memory), 0, hdr(h)->h_size);
 
-     if (prev != NULL && prev->h_objsize == 0) {
+     if (prev != 0 && hdr(prev)->h_objsize == 0
+#ifdef SEGMEM
+         && contiguous(prev, h)
+#endif
+          ) {
 	  DEBUG_PRINT('l', ("Merging with prev\n"));
 	  unlink(prev);
-	  prev->h_size += h->h_size;
-	  pg_memory = h->h_memory;
-	  pg_size = h->h_size;
+	  hdr(prev)->h_size += hdr(h)->h_size;
+	  update_mem = hdr(h)->h_memory;
+	  update_size = hdr(h)->h_size;
 	  free_header(h);
 	  h = prev;
      }
 
-     if (next != NULL && next->h_objsize == 0) {
+     if (next != 0 && hdr(next)->h_objsize == 0
+#ifdef SEGMEM
+         && contiguous(h, next)
+#endif
+          ) {
 	  DEBUG_PRINT('l', ("Merging with next\n"));
 	  unlink(next);
-	  next->h_memory = h->h_memory;
-	  next->h_size += h->h_size;
-	  pg_memory = h->h_memory;
-	  pg_size = h->h_size;
+	  hdr(next)->h_memory = hdr(h)->h_memory;
+	  hdr(next)->h_size += hdr(h)->h_size;
+	  update_mem = hdr(h)->h_memory;
+	  update_size = hdr(h)->h_size;
 	  free_header(h);
 	  h = next;
      }
 
-     if (pg_size > 0) page_setup(pg_memory, pg_size, h);
+     if (update_size > 0)
+          page_setup(update_mem, update_size, h);
      make_free(h);
 
      /* Return the merged block */
@@ -490,8 +595,8 @@ static header *free_block(header *h, mybool mapped) {
 }
 
 /* find_block -- find a free block of specified size */
-static header *find_block(unsigned size, unsigned objsize) {
-     header *h = NULL, *h2;
+static hdrptr find_block(unsigned size, unsigned objsize) {
+     hdrptr h = 0;
      int i = min(size/PAGESIZE, BIG_BLOCK);
 
      ASSERT(size % PAGESIZE == 0);
@@ -500,47 +605,47 @@ static header *find_block(unsigned size, unsigned objsize) {
 	  for (headers(h2, free_list[i])) {
 	       /* This always succeeds for small blocks, and gives
 		  first-fit allocation for big blocks. */
-	       if (size <= h2->h_size) {
+	       if (size <= hdr(h2)->h_size) {
 		    h = h2; break;
 	       }
 	  }
 	  i++;
-     } while (h == NULL && i <= BIG_BLOCK);
+     } while (h == 0 && i <= BIG_BLOCK);
 
-     if (h == NULL) {
+     if (h == 0) {
 	  /* No suitable block was found.  Get a big chunk. */
 	  unsigned chunk = max(size, CHUNK_SIZE);
 	  GC_TRACE("[ex]");
 	  ASSERT(chunk % PAGESIZE == 0);
 	  h = alloc_header();
-	  h->h_memory = get_memory(chunk);
-	  h->h_size = chunk;
+	  hdr(h)->h_memory = get_chunk(chunk);
+	  hdr(h)->h_size = chunk;
 	  /* Add to the free list for merging and page table setup */
 	  h = free_block(h, FALSE);
      }
 
-     ASSERT(h->h_memory != NULL && h->h_size >= size);
+     ASSERT(hdr(h)->h_memory != 0 && hdr(h)->h_size >= size);
      unlink(h);
 
-     if (size < h->h_size) {
+     if (size < hdr(h)->h_size) {
 	  /* Split the block, and return the waste to the free
 	     list.  It's best to use header h for the waste: that
 	     way, we don't have to reset lots of page table
 	     entries when we chip a small piece off a big block. */
-	  header *h2 = alloc_header();
-	  h2->h_memory = h->h_memory;
-	  h2->h_size = size;
-	  page_setup(h2->h_memory, size, h2);
+	  hdrptr h2 = alloc_header();
+	  hdr(h2)->h_memory = hdr(h)->h_memory;
+	  hdr(h2)->h_size = size;
+	  page_setup(hdr(h2)->h_memory, size, h2);
 		   
-	  h->h_memory += size;
-	  h->h_size -= size;
+	  hdr(h)->h_memory += size;
+	  hdr(h)->h_size -= size;
 	  make_free(h);
 
 	  h = h2;
      }
 
-     h->h_objsize = objsize;
-     h->h_epoch = gencount;
+     hdr(h)->h_objsize = objsize;
+     hdr(h)->h_epoch = gencount;
      return h;
 }
 
@@ -611,7 +716,7 @@ static void init_sizes(void) {
         sequence is 2, 4, 8, 12, 16, 24, 32 ... words, rounded up to
 	the biggest multiple of GRANULE that allows the same number
 	of objects in a page. */
-     int i;
+
      unsigned k;
 
      n_sizes = 0; 
@@ -640,7 +745,7 @@ static void init_sizes(void) {
      ASSERT(size_bytes[n_sizes-1] == MAX_SMALL_BYTES);
 
      k = 0;
-     for (i = 0; i < n_sizes; i++)
+     for (int i = 0; i < n_sizes; i++)
 	  while (k * BYTES_PER_WORD <= size_bytes[i]) size_map[k++] = i;
 
      ASSERT(size_map[MAX_SMALL_WORDS] == n_sizes-1);
@@ -653,11 +758,11 @@ static void init_sizes(void) {
    containing objects of that size, and a separate pool for large
    objects.  A second set of pools is used during garbage collection.
    The blocks in a pools are not necessarily sorted by address. */
-static header *block_pool[N_SIZES+1], *old_pool[N_SIZES+1];
+static hdrptr block_pool[N_SIZES+1], old_pool[N_SIZES+1];
 
 /* The free storage in each pool is in the upper part of one of the
    last block of the pool. */
-static byte *free_ptr[N_SIZES+1]; /* First free object */
+static word free_ptr[N_SIZES+1]; /* First free object */
 static int free_count[N_SIZES+1]; /* Number of free objects */
 
 /* To allocate an object of a given size, we first round up the size,
@@ -689,21 +794,21 @@ void scavenge(value *sp, unsigned size) {
 }
 
 static void add_block(int index) {
-     header *h = find_block(pool_block(index), pool_size(index));
+     hdrptr h = find_block(pool_block(index), pool_size(index));
      insert(block_pool[index], h);
      pool_total += pool_block(index);
-     free_ptr[index] = h->h_memory;
+     free_ptr[index] = hdr(h)->h_memory;
      free_count[index] = pool_count(index);
 }
 
-void *gc_alloc(value *desc, unsigned size, value *sp) {
+word gc_alloc(unsigned size, value *sp) {
      unsigned alloc_size;
-     word *p = NULL;
-     header *h;
+     word p = 0;
+     hdrptr h;
 
      if (debug['z']) gc_collect(sp);
 
-     size = round_up(size+4, BYTES_PER_WORD);
+     size = round_up(size, BYTES_PER_WORD);
 
      if (size <= MAX_SMALL_BYTES) {
 	  /* Try to allocate from the appropriate pool */
@@ -720,7 +825,7 @@ void *gc_alloc(value *desc, unsigned size, value *sp) {
 		    add_block(index);
 	  }
 
-	  p = (word *) free_ptr[index];
+	  p = free_ptr[index];
 	  free_ptr[index] += alloc_size;
 	  free_count[index]--;
      } else {
@@ -733,13 +838,12 @@ void *gc_alloc(value *desc, unsigned size, value *sp) {
 	  h = find_block(alloc_size, alloc_size);
 	  insert(block_pool[n_sizes], h);
 	  pool_total += alloc_size;
-	  p = (word *) h->h_memory;
+	  p = hdr(h)->h_memory;
      }
 
      alloc_since_gc += alloc_size;
-     DEBUG_PRINT('c', ("[Alloc %d %p]", size, p));
-     *p = address(desc);
-     return p+1;
+     DEBUG_PRINT('c', ("[Alloc %d %#x]", size, p));
+     return p;
 }
 
 
@@ -747,7 +851,7 @@ void *gc_alloc(value *desc, unsigned size, value *sp) {
 
 /* Now it's time to tackle the toughest part: the garbage collector
    itself.  We use a stop-and-copy method, refined to deal with the
-   allocation of different sizes of objects from different pages.
+   allocation of different sizes of objects from different blocks.
    Garbage collection works by copying needed objects out of the old
    heap space into a new space.  When an object is copied, its
    descriptor gets overwritten with the BROKEN_HEART token, and the
@@ -757,81 +861,84 @@ void *gc_alloc(value *desc, unsigned size, value *sp) {
 
 #define BROKEN_HEART 0xbabeface
 
-#define get_word(p, i) (((word *) p)[i])
+#define get_word(p, i) ptrcast(word, p)[i]
 #define desc(p) ptrcast(word, get_word(p, 0))
 
 /* redirect -- translate pointer into new space */
 static void redirect(word *p) {
-     byte *q, *r, *s;
-     header *h;
+     word q, r, s;
+     hdrptr h;
      int index;
+     unsigned objsize;
 
-     q  = ptrcast(byte, *p); /* q is the old pointer value */
-     if (q == NULL) return;
+     q  = *p; /* q is the old pointer value */
+     if (q == 0) return;
      h = get_header(q);
-     if (h == NULL) return;	/* Not in the managed heap */
-     ASSERT(h->h_objsize > 0);
+     if (h == 0) return;	/* Not in the managed heap */
+     objsize = hdr(h)->h_objsize;
+     ASSERT(objsize > 0);
 
-     if (h->h_objsize <= MAX_SMALL_BYTES) {
+     if (objsize <= MAX_SMALL_BYTES) {
 	  /* A small object */
-	  index = pool_map(h->h_objsize);
-	  ASSERT(pool_size(index) == h->h_objsize);
-	  r = h->h_memory + round_down(q - h->h_memory, h->h_objsize);
+	  index = pool_map(objsize);
+	  ASSERT(pool_size(index) == objsize);
+	  r = hdr(h)->h_memory + round_down(q - hdr(h)->h_memory, objsize);
 	  /* r is the start of the object containing q */
 
-	  if (get_word(r, 0) == BROKEN_HEART) 
-	       s = ptrcast(void, get_word(r, 1));
+          if (get_word(r, 0) == BROKEN_HEART) 
+	       s = get_word(r, 1);
 	  else {
 	       /* Evacuate object at r */
 	       if (free_count[index] == 0) add_block(index);
 	       s = free_ptr[index];
-	       memcpy(s, r, pool_size(index));
+	       memcpy(voidptr(s), voidptr(r), pool_size(index));
 	       free_ptr[index] += pool_size(index);
 	       free_count[index]--;
 	       get_word(r, 0) = BROKEN_HEART;
-	       get_word(r, 1) = address(s);
+	       get_word(r, 1) = s;
 	  }
 	  /* s is the new location for the object r */
-	  *p = address(s + (q - r));
-     } else if (h->h_epoch < gencount) {
+	  *p = s + (q - r);
+     } else if (hdr(h)->h_epoch < gencount) {
 	  /* A big block, not already moved to the new semispace */
 	  unlink(h);
 	  insert(block_pool[n_sizes], h);
-	  h->h_epoch = gencount;
+	  hdr(h)->h_epoch = gencount;
      }
 }
 
 /* map_next -- skip over a map item */
-static unsigned *map_next(unsigned *p) {
-     if (*p % 4 != 2)
-	  return p+1;		/* A pointer offset or bitmap */
+static word map_next(word p) {
+     if (get_word(p, 0) % 4 != 2)
+	  return p+4;		/* A pointer offset or bitmap */
      
-     switch (*p >> 2) {
+     switch (get_word(p, 0) >> 2) {
      case GC_BASE >> 2:
      case GC_MAP >> 2:
      case GC_POINTER >> 2:
-	  return p+2;
+	  return p+8;
 
      case GC_REPEAT >> 2:
      case GC_FLEX >> 2:
-	  p += 4;
-	  while (*p % 2 == 0 && *p != GC_END) p = map_next(p);
-	  return p+1;
+	  p += 16;
+          if (get_word(p, 0) % 2 == 0) {
+               while (get_word(p, 0) != GC_END) p = map_next(p);
+          }
+	  return p+4;
 
      case GC_BLOCK >> 2:
-	  return p+3;
+	  return p+12;
 			 
      default:
-	  panic("*bad map code %d", *p);
-	  return NULL;
+	  panic("*bad map code %d", get_word(p, 0));
+	  return 0;
      }
 }
 
 /* redir_map -- interpret a pointer map, redirecting each pointer */
-static void redir_map(unsigned map, byte *base, int bmshift) {
-     int count, stride, op, ndim, i;
-     byte *base2;
-     unsigned *p;
+static void redir_map(unsigned map, word origin, int bmshift) {
+     int count, stride, op, ndim;
+     word base, p;
 
      if (map == 0) return;
 
@@ -840,12 +947,13 @@ static void redir_map(unsigned map, byte *base, int bmshift) {
 	  int i = -bmshift; 
           map >>= 1;
 
-#define mrk(j)  redirect((word *) &get_word(base, i+j))
+#define mrk(j)  redirect((word *) &get_word(origin, i+j))
+
           while (map != 0) {
                switch (map & 15) {
                case 15: mrk(0);
                case 14: mrk(1);
-               case 12: mrk(2); mrk(3); break;
+               case 12: mrk(3); mrk(2); break;
                case 13: mrk(2);
                case  9: mrk(3); mrk(0); break;
                case 11: mrk(0);
@@ -867,132 +975,132 @@ static void redir_map(unsigned map, byte *base, int bmshift) {
 	  return;
      }
 
-     p = ptrcast(unsigned, map);
+     for (p = map;;) {
+          op = get_word(p, 0);
 
-     if (*p % 2 == 1) {
-          /* A bitmap */
-          redir_map(*p, base, 0);
-          return;
-     }
-
-     for (;;) {
-          op = *p;
-
-	  if (op % 4 == 0) {
+          switch (op & 0x3) {
+          case 0:
 	       /* A pointer offset */
-	       redirect((word *) (base + (int) op));
-	       p++;
-	       continue;
-	  }
+	       redirect(ptrcast(word, origin + op));
+	       p += 4; break;
 
-	  switch (op >> 2) {
-	  case GC_BASE >> 2:
-	       base = ptrcast(void, p[1]);
-	       break;
 
-          case GC_POINTER >> 2:
-               redirect(ptrcast(word, p[1]));
-               break;
+          case 1:
+          case 3:
+               /* A bitmap */
+               redir_map(op, origin, 0);
+               p += 4; break;
+
+          default:
+               switch (op >> 2) {
+               case GC_BASE >> 2:
+                    origin = get_word(p, 1);
+                    break;
+
+               case GC_POINTER >> 2:
+                    redirect(ptrcast(word, get_word(p, 1)));
+                    break;
                         
-	  case GC_REPEAT >> 2:
-	       base2 = base + p[1];
-	       count = p[2];
-	       stride = p[3];
+               case GC_REPEAT >> 2:
+                    base = origin + get_word(p, 1);
+                    count = get_word(p, 2);
+                    stride = get_word(p, 3);
 
-	       ASSERT(count > 0);
+                    for (int i = 0; i < count; i++)
+                         redir_map(p + 16, base + i*stride, 0);
 
-	       for (i = 0; i < count; i++)
-		    redir_map(address(p+4), base2 + i*stride, 0);
+                    break;
 
-	       break;
+               case GC_BLOCK >> 2:
+                    base = origin + get_word(p, 1);
+                    count = get_word(p, 2);
 
-	  case GC_BLOCK >> 2:
-	       base2 = base + p[1];
-	       count = p[2];
+                    for (int i = 0; i < count; i++)
+                         redirect((word *) &get_word(base, i));
 
-	       for (i = 0; i < count; i++)
-		    redirect((word *) &get_word(base2, i));
-	       break;
+                    break;
 			 
-	  case GC_MAP >> 2:
-	       redir_map((unsigned) p[1], base, 0);
-	       break;
+               case GC_MAP >> 2:
+                    redir_map(get_word(p, 1), origin, 0);
+                    break;
 
-	  case GC_FLEX >> 2:
-	       base2 = base + p[1];
-	       ndim = p[2];
-	       stride = p[3];
+               case GC_FLEX >> 2:
+                    /* Mark pointer in the local copy of an open array
+                       parameter passed by value */
 
-	       count = 1;
-	       for (i = 0; i < ndim; i++) 
-		    count *= get_word(base2, i+1);
+                    base = origin + get_word(p, 1);
+                    ndim = get_word(p, 2);
+                    stride = get_word(p, 3);
+
+                    /* Compute the number of elements */
+                    count = 1;
+                    for (int i = 0; i < ndim; i++) 
+                         count *= get_word(base, i+1);
 	       
-	       base2 = ptrcast(void, get_word(base2, 0));
-	       for (i = 0; i < count; i++)
-		    redir_map(address(p+4), base2 + i*stride, 0);
+                    /* Get address of the local copy */
+                    base = get_word(base, 0); 
 
-	       break;
+                    for (int i = 0; i < count; i++)
+                         redir_map(p + 16, base + i*stride, 0);
 
-	  case GC_END >> 2:
-	       return;
+                    break;
 
-	  default:
-	       panic("*bad map code %d", op);
-	  }
+               case GC_END >> 2:
+                    return;
 
-	  p = map_next(p);
+               default:
+                    panic("*bad map code %d", op);
+               }
+
+               p = map_next(p);
+          }
      }
 }
 
 /* traverse_stack -- chain down the stack, redirecting in each frame */
 static void traverse_stack(value *xsp) {
-     value *sp = NULL, *f;
-     value pc; pc.i = 0;
+     value *sp = NULL;
+     unsigned pc = 0;
 
-     for (f = xsp; f != NULL; f = valptr(f[BP])) {
+     for (value *f = xsp; f != NULL; f = valptr(f[BP])) {
 	  value *c = valptr(f[CP]);
-#ifdef TRACE
-	  proc x = find_proc(c);
-#endif
+          unsigned stkmap = 0;
 
 	  /* Local variables and parameters */
-	  DEBUG_PRINT('m', ("\nFrame for %s", x->p_name));
+	  DEBUG_PRINT('m', ("\nFrame for %s",
+                            find_proc(dsegaddr(c))->p_name));
 	  if (c[CP_MAP].i != 0) 
-	       redir_map(c[CP_MAP].i, (byte *) f, FRAME_SHIFT);
+	       redir_map(c[CP_MAP].i, stkaddr(f), FRAME_SHIFT);
 
-	  if (pc.i != 0) {
-	       /* Evaluation stack: look up calling PC value in
-		  stack map table. */
-	       if (interpreted(c)) {
-		    value *r = valptr(c[CP_STKMAP]);
-		    if (r == NULL) continue;
-		    DEBUG_PRINT('m', ("\n<SM pc=%p>", pointer(pc)));
-		    while (pointer(r[0]) != NULL) {
-			 DEBUG_PRINT('m', (" %p", pointer(r[0])));
-			 if (pointer(r[0]) == pointer(pc)) break;
-			 r += 2;
-		    }
-		    if (pointer(r[0]) != NULL) {
-			 DEBUG_PRINT('m', ("\nEval stack (%#x)", r[1].i));
-			 redir_map(r[1].i, (byte *) sp, 0);
-		    }
-	       } else {
-		    /* Compiled primitive: f[PC].i is stack map */
-		    DEBUG_PRINT('m', ("\nEval stack (%#x)", pc.i));
-		    redir_map(pc.i, (byte *) sp, 0);
-	       }
-	  }
+          /* Evaluation stack */
+          if (! interpreted(c)) {
+               /* Compiled primitive: f[PC].i is stack map */
+               stkmap = pc;
+          } else if (pc != 0 && c[CP_STKMAP].a != 0) {
+               /* Look up calling PC value in stack map table. */
+               unsigned *r = pointer(c[CP_STKMAP]);
+               DEBUG_PRINT('m', ("\n<SM pc=%#x>", pc));
+               while (r[0] != 0) {
+                    DEBUG_PRINT('m', (" %#x", r[0]));
+                    if (r[0] == pc) { stkmap = r[1]; break; }
+                    r += 2;
+               }
+          }
 
-	  pc = f[PC]; sp = f + HEAD;
+          if (stkmap != 0) {
+               DEBUG_PRINT('m', ("\nEval stack (%#x)", stkmap));
+               redir_map(stkmap, stkaddr(sp), 0);
+          }
+
+	  pc = f[PC].i; sp = f + HEAD;
      }
 }     
      
 /* migrate -- redirect within the heap, recursively copying to new space */
 static void migrate(void) {
-     header *thumb[N_SIZES], *big_thumb = block_pool[n_sizes];
-     byte *finger[N_SIZES], *p;
+     hdrptr thumb[N_SIZES], big_thumb = block_pool[n_sizes];
+     word finger[N_SIZES];
      mybool changed;
-     int i;
 
      /* For each pool, we keep a 'thumb' pointing to one of the blocks
 	in the pool, and a 'finger' pointing somewhere in that block.
@@ -1010,44 +1118,64 @@ static void migrate(void) {
 	change, we must check all pools again in case more objects
 	have migrated into the new space. */
 
-     for (i = 0; i < n_sizes; i++) {
+     for (int i = 0; i < n_sizes; i++) {
 	  thumb[i] = block_pool[i];
-	  finger[i] = NULL;
+	  finger[i] = 0;
      }
 
      do {
 	  changed = FALSE;
 
-	  for (i = 0; i < n_sizes; i++) {
+	  for (int i = 0; i < n_sizes; i++) {
 	       while (finger[i] != free_ptr[i]) {
-		    if (thumb[i] == block_pool[i]
-			|| finger[i] + pool_size(i) 
-				> thumb[i]->h_memory + pool_block(i)) {
-			 thumb[i] = thumb[i]->h_next;
-			 finger[i] = thumb[i]->h_memory;
+		    if (thumb[i] == block_pool[i] ||
+                        finger[i] + pool_size(i) 
+                             > hdr(thumb[i])->h_memory + pool_block(i)) {
+			 thumb[i] = hdr(thumb[i])->h_next;
+			 finger[i] = hdr(thumb[i])->h_memory;
 		    }
 
 		    changed = TRUE;
-		    p = finger[i];
+		    word p = finger[i];
 		    if (desc(p) != NULL)
 			 redir_map(desc(p)[DESC_MAP], p + BYTES_PER_WORD, 0);
 		    finger[i] = p + pool_size(i);
 	       }
 	  }
 
-	  while (big_thumb->h_next != block_pool[n_sizes]) {
+	  while (hdr(big_thumb)->h_next != block_pool[n_sizes]) {
 	       changed = TRUE;
-	       big_thumb = big_thumb->h_next;
-	       p = big_thumb->h_memory;
+	       big_thumb = hdr(big_thumb)->h_next;
+	       word p = hdr(big_thumb)->h_memory;
 	       if (desc(p) != NULL)
-		    redir_map(desc(p)[DESC_MAP], p + BYTES_PER_WORD, 0);
+		    redir_map(desc(p)[DESC_MAP], p+BYTES_PER_WORD, 0);
 	  }
      } while (changed);
 }
 
-/* A batch program, so no need to catch signals */
+#ifdef HAVE_SIGPROCMASK
+#include <signal.h>
+
+static sigset_t oldmask;
+
+/* mask_signals -- block all signals */
+static void mask_signals(void) {
+     sigset_t mask;
+     sigfillset(&mask);
+     sigprocmask(SIG_SETMASK, &mask, &oldmask);
+}
+
+/* unmask_signals -- restore the old signal mask */
+static void unmask_signals(void) {
+     sigprocmask(SIG_SETMASK, &oldmask, NULL);
+}
+#else
+
+/* On Windows and other systems, just forget it */
 #define mask_signals()
 #define unmask_signals()
+
+#endif
 
 void gc_dump(void) {
 #ifdef DEBUG
@@ -1060,9 +1188,10 @@ void gc_dump(void) {
 	       total = 0;
 	       printf("  %4d:", pool_size(i));
 	       for (headers(h, block_pool[i])) {
-		    ASSERT(h->h_memory != NULL && h->h_objsize == pool_size(i));
-		    printf(" %p", h->h_memory);
-		    total += h->h_size;
+		    ASSERT(hdr(h)->h_memory != 0
+                           && hdr(h)->h_objsize == pool_size(i));
+		    printf(" %#x", hdr(h)->h_memory);
+		    total += hdr(h)->h_size;
 	       }
 	       printf(" total %#x\n", total);
 	       small_total += total;
@@ -1071,9 +1200,10 @@ void gc_dump(void) {
      if (!empty(block_pool[n_sizes])) {
 	  printf("Big blocks:");
 	  for (headers(h, block_pool[n_sizes])) {
-	       ASSERT(h->h_memory != NULL && h->h_objsize == h->h_size);
-	       printf(" %p (%#x)", h->h_memory, h->h_size);
-	       big_total += h->h_size;
+	       ASSERT(hdr(h)->h_memory != 0
+                      && hdr(h)->h_objsize == hdr(h)->h_size);
+	       printf(" %#x (%#x)", hdr(h)->h_memory, hdr(h)->h_size);
+	       big_total += hdr(h)->h_size;
 	  }
      }
      printf("\n");
@@ -1087,9 +1217,9 @@ void gc_dump(void) {
 		    printf("  %4d:", i);
 
 	       for (headers(h, free_list[i])) {
-		    ASSERT(h->h_objsize == 0);
-		    printf(" %p (%#x)", h->h_memory, h->h_size);
-		    free_total += h->h_size;
+		    ASSERT(hdr(h)->h_objsize == 0);
+		    printf(" %#x (%#x)", hdr(h)->h_memory, hdr(h)->h_size);
+		    free_total += hdr(h)->h_size;
 	       }
 
 	       printf("\n");
@@ -1106,10 +1236,8 @@ void gc_dump(void) {
 #endif
 }
 
-void gc_collect(value *sp) {
-     int i;
-
-     if (!gcflag) return;
+value *gc_collect(value *sp) {
+     if (!gcflag) return sp;
 
      GC_TRACE("[gc");
      mask_signals();
@@ -1117,21 +1245,21 @@ void gc_collect(value *sp) {
      pool_total = 0;
 
      /* Flip semispaces */
-     for (i = 0; i <= n_sizes; i++) {
-	  header *h = block_pool[i];
+     for (int i = 0; i <= n_sizes; i++) {
+	  hdrptr h = block_pool[i];
           block_pool[i] = old_pool[i]; old_pool[i] = h;
 	  ASSERT(empty(block_pool[i]));
-	  free_ptr[i] = NULL; free_count[i] = 0;
+	  free_ptr[i] = 0; free_count[i] = 0;
      }
 
-     redir_map(address(gcmap), NULL, 0);  /* Redirect global variables */
+     redir_map(dsegaddr(gcmap), 0, 0);  /* Redirect global variables */
      traverse_stack(sp);	/* Redirect pointers in the stack */
      migrate();			/* Redirect internal pointers */
 
      /* Free old semispace */
-     for (i = 0; i <= n_sizes; i++) {
+     for (int i = 0; i <= n_sizes; i++) {
 	  while (! empty(old_pool[i])) {
-	       header *h = old_pool[i]->h_next;
+	       hdrptr h = hdr(old_pool[i])->h_next;
 	       unlink(h);
 	       free_block(h, TRUE);
 	  }
@@ -1140,17 +1268,14 @@ void gc_collect(value *sp) {
      unmask_signals();
      alloc_since_gc = 0;
      GC_TRACE("]");
+     return sp;
 }
 
 /* gc_init -- initialise everything */
 void gc_init(void) {
      unsigned i;
 
-     if (sizeof(page_index) != PAGESIZE) panic("Bad page index size");
-
-     empty_index = (page_index *) scratch_alloc(sizeof(page_index));
-     for (i = 0; i < TOP_SIZE; i++) page_table[i] = address(empty_index);
-
+     init_pagetable();
      init_sizes();
 
      /* Set up list headers */
@@ -1175,4 +1300,10 @@ void gc_debug(char *flags) {
 
 int gc_heap_size() {
      return heap_size;
+}
+
+/* vm_alloc -- upcall from vm to allocate code buffer */
+void *vm_alloc(int size) {
+     /* scratch_alloc will allocate whole pages */
+     return scratch_alloc(size);
 }

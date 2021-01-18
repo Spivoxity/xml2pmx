@@ -3,6 +3,9 @@
 /* Define if building universal (internal helper macro) */
 #undef AC_APPLE_UNIVERSAL_BUILD
 
+/* Debug */
+#undef DEBUG
+
 /* Define to 1 if you have the `getpagesize' function. */
 #undef HAVE_GETPAGESIZE
 
@@ -45,9 +48,6 @@
 /* Define for 64-bit runtime with 32-bit pointers */
 #undef M64X32
 
-/* Define to enable hacks for MacOS X */
-#undef MACOS
-
 /* Magic number for executables */
 #undef MAGIC
 
@@ -78,8 +78,14 @@
 /* Page size */
 #undef PAGESIZE
 
+/* Define to use preloaded image */
+#undef PRELOAD
+
 /* Build id for runtime */
 #undef REVID
+
+/* Define to simulate segmented memory */
+#undef SEGMEM
 
 /* OBC version signature */
 #undef SIG
@@ -98,9 +104,6 @@
 
 /* Version number of package */
 #undef VERSION
-
-/* Define to enable hacks for Windows */
-#undef WINDOWS
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */

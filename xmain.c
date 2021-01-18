@@ -28,7 +28,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define main xmain
+#include <string.h>
+#include <stdlib.h>
 
 #define EXTERN
 #include "obx.h"
@@ -65,33 +66,44 @@ const char *version =
 		       ""
 #endif
      ;
+extern const char *lib_version;
 const char *copyright = "Copyright (C) 1999--2012 J. M. Spivey";
 
 extern int vm_debug;
 
 /* Helper functions for the loader */
 
-module make_module(char *name, uchar *addr, int chksum, int nlines) {
-     module m = (module) scratch_alloc(sizeof(struct _module));
+void make_module(char *name, word addr, int chksum, int nlines) {
+     module m = scratch_alloc_atomic(sizeof(struct _module));
+     static int nm = 0;
+
+     if (modtab == NULL)
+          modtab = scratch_alloc_atomic(nmods * sizeof(module));
+
      m->m_name = name;
-     m->m_addr = addr;
+     m->m_addr =addr;
 #ifdef PROFILE
      m->m_nlines = nlines;
      m->m_lcount = NULL;
      if (lflag && nlines > 0) {
-	  m->m_lcount = 
-	       (unsigned *) scratch_alloc(nlines * sizeof(unsigned));
+	  m->m_lcount = scratch_alloc_atomic(nlines * sizeof(unsigned));
 	  memset(m->m_lcount, 0, nlines * sizeof(int));
      }
 #endif
 #ifdef OBXDEB
      debug_message("module %s %#x", name, chksum);
 #endif
-     return m;
+     if (nm >= nmods) panic("Too many modules");
+     modtab[nm++] = m;
 }
 
-proc make_proc(char *name, unsigned addr) {
-     proc p = (proc) scratch_alloc(sizeof(struct _proc));
+void make_proc(char *name, word addr) {
+     proc p = scratch_alloc_atomic(sizeof(struct _proc));
+     static int np = 0;
+
+     if (proctab == NULL)
+          proctab = scratch_alloc_atomic(nprocs * sizeof(proc));
+
      p->p_name = name;
      p->p_addr = addr;
 #ifdef PROFILE
@@ -99,17 +111,30 @@ proc make_proc(char *name, unsigned addr) {
      p->p_parents = p->p_children = NULL;
 #endif
 #ifdef OBXDEB
-     debug_message("proc %s %#x %#x %d", name, address(addr), 
-		   p->p_addr[CP_CODE].a, p->p_addr[CP_SIZE].i);
+     value *cp = ptrcast(value, p->p_addr);
+     debug_message("proc %s %#x %#x %d", name, addr,
+                   cp[CP_CODE].a, cp[CP_SIZE].i);
 #endif
-     return p;
+     if (np >= nprocs) panic("Too many procs");
+     proctab[np++] = p;
 }
 
-void make_symbol(const char *kind, char *name, uchar *addr) {
+void make_symbol(const char *kind, char *name, word addr) {
 #ifdef OBXDEB
-     debug_message("%s %s %#x", kind, name, address(addr));
+     debug_message("%s %s %#x", kind, name, addr);
 #endif
 }
+
+/* fix_sizes -- calculate module lengths */
+void fix_sizes(int dseg) {
+     word p = dsegaddr(dmem + dseg);
+
+     for (int i = nmods-1; i >= 0; i--) {
+	  modtab[i]->m_length = p - modtab[i]->m_addr;
+	  p = modtab[i]->m_addr;
+     }
+}     
+
 
 /* Runtime errors */
 
@@ -121,7 +146,7 @@ void make_symbol(const char *kind, char *name, uchar *addr) {
 
 static void backtrace(value *bp) {
      value *fp = bp, *cp = valptr(bp[CP]);
-     proc p = find_proc(cp);
+     proc p = find_proc(dsegaddr(cp));
      int n, j;
      proc fbuf[NBUF];
      
@@ -134,7 +159,7 @@ static void backtrace(value *bp) {
 	  fp = valptr(fp[BP]);	/* Base pointer of next frame */
 	  if (fp == NULL) break;
 	  cp = valptr(fp[CP]);	/* Constant pool of next frame */
-	  fbuf[n%NBUF] = p = find_proc(cp);
+	  fbuf[n%NBUF] = p = find_proc(dsegaddr(cp));
 	  if (n < TOP)
 	       fprintf(stderr, "   called from %s\n", p->p_name);
      }
@@ -170,8 +195,6 @@ static const char *message(int code) {
 	  return "no matching label in CASE statement";
      case E_WITH:
 	  return "no matching type guard in WITH statement";
-     case E_ASSERT:
-	  return "assertion failed (%d)";
      case E_RETURN:
 	  return "function failed to return a result";
      case E_BOUND:
@@ -192,16 +215,21 @@ static const char *message(int code) {
 }
 
 /* error_stop -- runtime error with explicit message text */
-void error_stop(const char *msg, int line, value *bp, uchar *pc) {
-#ifdef OBXDEB
+void error_stop(const char *msg, int val, int line, value *bp, uchar *pc) {
      value *cp = valptr(bp[CP]);
+
+#ifdef OBXDEB
      char buf[256];
-     sprintf(buf, msg, ob_res.i);
+     sprintf(buf, msg, val);
      debug_break(cp, bp, pc, "error %d %s", line, buf);
 #else
+     module mod = find_module(dsegaddr(cp));
+
      fprintf(stderr, "Runtime error: ");
-     fprintf(stderr, msg, ob_res.i);
-     if (line > 0) fprintf(stderr, " on line %d\n", line);
+     fprintf(stderr, msg, val);
+     if (line > 0) fprintf(stderr, " on line %d", line);
+     if (mod != NULL && strcmp(mod->m_name, "_Builtin") != 0) 
+	  fprintf(stderr, " in module %s", mod->m_name);
      fprintf(stderr, "\n");
      fflush(stderr);
 
@@ -218,7 +246,7 @@ void error_stop(const char *msg, int line, value *bp, uchar *pc) {
 
 /* runtime_error -- report a runtime error */
 void runtime_error(int m, int line, value *bp, uchar *pc) {
-     error_stop(message(m), line, bp, pc);
+     error_stop(message(m), 0, line, bp, pc);
 }
 
 /* rterror -- simple version of runtime_error for JIT */
@@ -234,6 +262,9 @@ void stkoflo(value *bp) {
 
 /* Startup */
 
+#define argc saved_argc
+#define argv saved_argv
+
 static void run(value *prog) {
      value *sp;
 
@@ -241,14 +272,84 @@ static void run(value *prog) {
      sp = (value *) (stack + stack_size) - 32; 
 
      sp -= HEAD; 
-     sp[BP].a = address(NULL); 
-     sp[PC].a = address(NULL); 
-     sp[CP].a = address(prog);
+     sp[BP].a = 0;
+     sp[PC].a = 0;
+     sp[CP].a = dsegaddr(prog);
      primcall(prog, sp);
 }
 
-#define argc saved_argc
-#define argv saved_argv
+#ifndef PRELOAD
+mybool custom_file(char *name) {
+     char buf[4];
+     FILE *fp;
+     int nread;
+     mybool result;
+
+     fp = fopen(name, "rb");
+     if (fp == NULL) return FALSE;
+     fseek(fp, - (long) sizeof(trailer), SEEK_END);
+     nread = fread(buf, 1, 4, fp);
+     if (nread < 4 || strncmp(buf, MAGIC, 4) != 0)
+	  result = FALSE;
+     else {
+	  fseek(fp, 0, SEEK_SET);
+	  nread = fread(buf, 1, 2, fp);
+	  result = (nread == 2 && strncmp(buf, "#!", 2) != 0);
+     }
+     fclose(fp);
+     return result;
+}
+ 
+#ifdef WINDOWS
+#include <windows.h>
+#include <winbase.h>
+
+char *search_path(char *name) {
+     static char buf[_MAX_PATH];
+     char *filepart;
+
+     if (SearchPath(NULL, name, ".exe", _MAX_PATH, buf, &filepart) == 0)
+	  return NULL;
+
+     return buf;
+}
+#else
+#include <sys/stat.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+char *search_path(char *name) {
+     char *path;
+     static char buf[256];
+     struct stat stbuf;
+
+     if (name == NULL || strchr(name, '/') != NULL) return name;
+
+     path = getenv("PATH");
+     if (path == NULL) return NULL;
+
+     for (char *p = path, *q; p != NULL; p = q) {
+	  q = strchr(p, ':');
+          char *r;
+	  if (q == NULL) {
+	       strcpy(buf, p);
+	       r = buf + strlen(p);
+	  } else {
+	       strncpy(buf, p, q-p);
+	       r = buf + (q-p); q++;
+	  }
+	  if (r > buf) *r++ = '/';
+	  strcpy(r, name);
+
+	  if (access(buf, R_OK) == 0 && stat(buf, &stbuf) == 0
+	      && S_ISREG(stbuf.st_mode))
+	       return buf;
+     }
+
+     return NULL;
+}
+#endif
 
 static char *progname;
 #ifdef PROFILE
@@ -256,9 +357,70 @@ static char *profout;
 static const char *dumpname = "obprof.out";
 #endif
 
+static void usage(void) {
+#ifdef PROFILE
+     fprintf(stderr, 
+	     "Usage: %s [-g] [-pl] [-o file] program [arg ...]\n", 
+	     progname);
+#else
+     fprintf(stderr, "Usage: %s program [arg ...]\n", progname);
+#endif
+     fflush(stderr);
+     _exit(1);
+}
+
 #ifdef JTEST
 static mybool tflag = 0;
 #endif
+
+/* read_flags -- interpret flags */
+static void read_flags(void) {
+     for (;;) {
+	  argc--; argv++;
+	  if (argc == 0 || argv[0][0] != '-') return;
+
+	  if (strcmp(argv[0], "--") == 0) {
+	       argc--; argv++;
+	       return;
+	  } else if (strcmp(argv[0], "-d") == 0) {
+	       dflag++;
+	  } else if (strcmp(argv[0], "-v") == 0) {
+	       fprintf(stderr, "%s\n", version);
+	       fprintf(stderr, "%s\n", lib_version);
+	       exit(0);
+	  }
+#ifdef PROFILE
+	  else if (argc >= 2 && strcmp(argv[0], "-o") == 0) {
+	       profout = argv[1];	
+	       argc--; argv++;
+	  } else if (strcmp(argv[0], "-g") == 0) {
+	       gflag = TRUE;
+	  } else if (strcmp(argv[0], "-l") == 0 
+		     || strcmp(argv[0], "-pl") == 0) {
+	       lflag = TRUE;
+	  }
+#endif
+#ifdef TRACE
+	  else if (strcmp(argv[0], "-q") == 0) {
+	       qflag++;
+	  }
+#endif
+#ifdef OBXDEB
+	  else if (argc >= 2 && strcmp(argv[0], "-p") == 0) {
+	       debug_socket = argv[1];
+	       argc--; argv++;
+	  }
+#endif
+#ifdef JTEST
+          else if (strcmp(argv[0], "-t") == 0) {
+               tflag++;
+          }
+#endif
+	  else {
+	       usage();
+	  }
+     }
+}
 
 #ifdef PROFILE
 static void dump_lcounts(void) {
@@ -299,6 +461,7 @@ static void print_profile(void) {
      if (fp != stderr) fclose(fp);
 }
 #endif
+#endif
 
 #ifdef JTEST
 static void jit_test(void) {
@@ -307,9 +470,8 @@ static void jit_test(void) {
      module m = modtab[nmods-2];
      for (int i = 0; i < nprocs; i++) {
           proc p = proctab[i];
-          if ((uchar *) p->p_addr >= m->m_addr
-              && (uchar *) p->p_addr < m->m_addr + m->m_length)
-               jit_compile(p->p_addr);
+          if (p->p_addr >= m->m_addr && p->p_addr < m->m_addr + m->m_length)
+               jit_compile(ptrcast(value, p->p_addr));
      }
 }
 #endif
@@ -334,28 +496,119 @@ void NORETURN error_exit(int status) {
      exit(status);
 }
 
+/* The interpreter can be invoked in three ways:
+   (i)   Explicitly as "obx [flags] bytefile args"
+
+   (ii)  Via a #! script as "obx bytefile args"
+         or "bytefile bytefile args" under some Unixes
+
+   (iii) In a glued-together executable as "bytefile args"
+
+   Following the example of CAML Light, we recognize (iii) by seeing
+   if argv[0] names a bytefile that does not begin with #!.  In that
+   case, we read that file for the bytecodes, and the program's args
+   follow immediately; otherwise, we look for flags and the name of
+   the bytefile before the program's args.  In either case, we must be
+   prepared to search the shell path to find the bytefile. 
+
+   These rules are modified a bit if a custom file is built for
+   profiling: in that case, we look for switches even in case (iii). 
+
+   Actually, there's a fourth way: linking the interpreter with a
+   "preloaded" image. */
+
 int main(int ac, char *av[]) {
-     argc = ac; argv = av;
-     progname = argv[0];
-
-     gc_init();
-     interpreter = wrap_prim(interp);
-     dyntrap = wrap_prim(dltrap);
-
-#ifdef M64X32
-     /* Allocate ob_res and statlink in 32-bit addressible storage */
-     _result = (value *) scratch_alloc(2 * sizeof(value));
-     _stat = (value **) scratch_alloc(sizeof(value *));
+#ifndef M64X32
+     if (sizeof(uchar *) != 4) panic("Bad pointer size");
 #endif
 
+     argc = ac; argv = av;
+
+#ifndef PRELOAD
+     progname = argv[0];
+
+     /* Read the command line first to handle -v */
+     char *codefile = search_path(argv[0]);
+     if (codefile != NULL && custom_file(codefile)) {
+#ifdef PROFILE
+	  char *prog = argv[0];
+	  read_flags();
+	  /* Fill the program name back in as argv[0] */
+	  argc++; argv--;
+	  argv[0] = prog;
+#endif
+     } else {
+	  read_flags();
+	  if (argc < 1) usage();
+	  codefile = search_path(argv[0]);     
+     }
+
+     if (codefile == NULL) panic("can't find %s", argv[0]);
+#endif
+
+#ifdef OBXDEB
+     /* Now connect to the debugger process */
+     debug_init();
+#endif
+
+     gc_init();
+
+#ifdef JIT
+     vm_debug = dflag;
+     interpreter = wrap_prim(jit_trap);
+#else
+     interpreter = wrap_prim(interp);
+#endif
+     dyntrap = wrap_prim(dltrap);
+#ifdef USE_FFI
+     dynstub = wrap_prim(dlstub);
+#endif
+
+#ifdef PRELOAD
      load_image();
+#else
+     FILE *fp = fopen(codefile, "rb");
+     if (fp == NULL) panic("can't open %s", codefile);
+     load_file(fp);
+     fclose(fp);
+#endif
+
+#ifdef TRACE
+     if (dflag) dump();
+     if (qflag) exit(0);
+#endif
+
+#ifdef JTEST
+     if (tflag) {
+          jit_test();
+          exit(0);
+     }
+#endif
+
+#ifdef PROFILE
+     if (nprocs == 0) 
+	  panic("no symbol table in object file");
+
+     prof_init();
+#endif	  
+
+#ifdef OBXDEB
+     debug_break(NULL, NULL, NULL, "ready");
+#endif
+#ifdef DEBUG
+     if (dflag)
+	  printf("Starting program at address %ld\n",
+                 (long) ((uchar *) entry - dmem));
+#endif
+
      run(entry);
      xmain_exit(0);
 }
 
 #ifdef JIT
-void interp(value *bp) {
+value *interp(value *bp) {
      panic("dummy interp called");
+     return NULL;
 }
 #endif
 
@@ -366,10 +619,10 @@ word wrap_prim(primitive *prim) {
 #ifndef M64X32
      return (word) prim;
 #else
-     primitive **wrapper =
-          (primitive **) scratch_alloc(sizeof(primitive *));
+     word addr = virtual_alloc_atomic(sizeof(primitive *));
+     primitive **wrapper = ptrcast(primitive *, addr);
      *wrapper = prim;
-     return address(wrapper);
+     return addr;
 #endif
 #endif
 }

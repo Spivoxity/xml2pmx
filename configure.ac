@@ -24,29 +24,26 @@ AC_CHECK_FUNCS(mmap)
 AC_C_INDEXED_JUMPS
 
 # M64X32 allows Keiko programs (with 4-byte pointers) to run on machines
-# with a 64-bit address space; it depends on allocating all storage used
-# by the program in the bottom 4GB of the address space.  This works well
-# on x86_64.  See the code and commentary in grab_chunk(gc.c)
+# with a 64-bit address space.
 AC_CHECK_SIZEOF([int *])
 if test $ac_cv_sizeof_int_p = 8; then
   AC_DEFINE(M64X32, 1, [Define for 64-bit runtime with 32-bit pointers])
 fi
 
+# SEGMEM allows malloc to be used for all dynamic storage allocation
+AC_DEFINE(SEGMEM, 1, [Define to simulate segmented memory])
+
 # Filter used to compare output of regression tests: special for Windows
 FIXUP=cat
-
-# These host-specific defines affect only the allocation code in gc.c
 case $host in
   *-*-mingw*|*-*-cygwin)
-    AC_DEFINE(WINDOWS, 1, [Define to enable hacks for Windows])
     FIXUP=d2u;;
-  *-*-darwin*)
-    AC_DEFINE(MACOS, 1, [Define to enable hacks for MacOS X])
-    AC_SUBST(LDFLAGS, "-pagezero_size 0x1000");;
 esac
 AC_SUBST(FIXUP)
 
+AC_DEFINE(PRELOAD, 1, [Define to use preloaded image])
 AC_DEFINE(MAGIC, "OBCX", [Magic number for executables])
-AC_DEFINE(SIG, 0x00030100, [OBC version signature])
+AC_DEFINE(SIG, 0x00030290, [OBC version signature])
+AC_DEFINE(DEBUG, 1, [Debug])
 
 AC_OUTPUT

@@ -28,7 +28,21 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/* This file is the skeleton of the bytecode interpreter; the parts
+   specific to each instruction are inserted from the file
+   'keiko.iset' by the script 'iset.tcl'.  There are three places that
+   code is inserted, each marked by two dollar signs.  In order of
+   appearance, they are:
+
+   1. A jump table for quick dispatching (used if JTABLE is defined).
+
+   2. Macro definitions used in the action routines.
+
+   3. Action routines for each instruction, forming the cases in a big
+      switch. */
+
 #include <math.h>
+#include <string.h>
 #include "obx.h"
 #include "keiko.h"
 
@@ -39,7 +53,7 @@
 #ifdef TRACE
 #define DISASS 1
 #undef JTABLE
-#define do_find_proc if (dflag > 1) thisproc = find_proc(cp)
+#define do_find_proc if (dflag > 1) thisproc = find_proc(dsegaddr(cp))
 #else
 #define do_find_proc
 #endif
@@ -91,18 +105,15 @@ static inline void putlong(value *v, longint x) {
 #define parent(a, t)    indir(pointer(bp[SL]) + a, t)
 #define indir(p, t)     (* (t *) (p))
 #define subs(p, n, t)   ((t *) (p))[n]
-#define konst(n)        cp[CP_CONST+n]
+#define const(n)        cp[CP_CONST+n]
 #define jump(lab)       pc = pc0 + lab
-
-#define index(x, y, s)  pointer(x) + (y.i << s)
-
 
 #define load(x, t)      indir(pointer(x), t)
 #define store(x, y, t)  indir(pointer(y), t) = x
 #define ldl(a, t)       indir(local(a), t)
 #define stl(a, x, t)    indir(local(a), t) = x
-#define ldg(a, t)       indir(pointer(konst(a)), t)
-#define stg(a, x, t)    indir(pointer(konst(a)), t) = x
+#define ldg(a, t)       indir(pointer(const(a)), t)
+#define stg(a, x, t)    indir(pointer(const(a)), t) = x
 #define ldn(a, x)       indir(pointer(x)+a, int)
 #define stn(a, x, y)    indir(pointer(y)+a, int) = x
 #define ldi(x, y, t)    subs(pointer(x), y.i, t)
@@ -138,28 +149,13 @@ static inline void putlong(value *v, longint x) {
 #define cond_break()
 #endif
 
-#ifdef SPECIALS
-#define casejump(x, n0)                                 \
-     {                                                  \
-          int n = n0;                                   \
-          pc0 = pc; pc += 4*n;                          \
-          while (n > 0) {                               \
-               if (x == get2(pc0)) {                    \
-                    jump(get2(pc0+2));                  \
-                    break;                              \
-               }                                        \
-               pc0 += 4; n--;                           \
-          }                                             \
-     }
-#endif
-
-
 /* interp -- main loop of the interpreter */
-void interp(value *sp0) {
+value *interp(value *sp0) {
      register value *cp = valptr(sp0[CP]);
-     uchar *pc = codeptr(cp[CP_CODE]);
+     uchar *pc = codeptr(cp[CP_CODE].a);
      register uchar *pc0 = NULL;
      register value *sp = sp0;
+     register value *rp = NULL;
      register uchar ir = 0;
 #ifdef PROFILE
      register counter ticks = 0;
@@ -196,13 +192,15 @@ enter:
      do_find_proc;
 
 #ifdef PROFILE
-     prof_enter(cp, ticks, PROF_CALL);
+     prof_enter(dsegaddr(cp), ticks, PROF_CALL);
 #endif
 
      bp = sp;								
      sp = (value *) ((uchar *) bp - cp[CP_FRAME].i);			
      if ((uchar *) sp < stack + SLIMIT) error(E_STACK, 0);		
-     memset(sp, 0, cp[CP_FRAME].i);
+
+     // Preserve the static link if the routine starts with SAVELINK
+     memset(sp, 0, (*pc == K_SAVELINK ? cp[CP_FRAME].i - 4 : cp[CP_FRAME].i));
 
 #ifdef JTABLE
      NEXT;
@@ -212,7 +210,7 @@ enter:
 	  if (dflag > 1) {
 	       printf("pc=%s+%ld(%p) sp=%p bp=%p cp=%p",
 		      thisproc->p_name,
-                      (long) (pc - (uchar *) pointer(cp[CP_CODE])),
+                      (long) (pc - codeptr(cp[CP_CODE].a)),
                       pc, sp, bp, cp);
 	       fflush(stdout);
 	       for (int i = 0; i < 8; i++) printf(" %x", sp[i].i);
@@ -234,6 +232,7 @@ enter:
 	  ACTION(ILLEGAL)
 	  DEFAULT
 	       panic("*illegal instruction %d", ir);
+               return NULL;
 #ifndef JTABLE
 	  }
      }

@@ -1,0 +1,26 @@
+#!/usr/bin/tclsh
+
+set srcdir /home/mike/src/obc-3.2
+
+set sources [list \
+                 lib/Args.c \
+                 lib/Builtin.c \
+                 lib/Files.c \
+                 runtime/action.c \
+                 runtime/dynlink.c \
+                 runtime/exec.h \
+                 runtime/gc.c \
+                 runtime/interp.c \
+                 runtime/keiko.h \
+                 runtime/loader.c \
+                 runtime/obcommon.h \
+                 runtime/obx.h \
+                 runtime/primtab.h \
+                 runtime/support.c \
+                 runtime/xmain.c \
+                ]
+
+foreach f $sources {
+    set g [file tail $f]
+    file copy -force "$srcdir/$f" $g
+}

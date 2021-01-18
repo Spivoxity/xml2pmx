@@ -43,6 +43,8 @@ in its initialization part.
 */
 
 #include "obx.h"
+#include <string.h>
+#include <stdlib.h>
 
 #ifdef DYNLINK
 
@@ -51,7 +53,7 @@ in its initialization part.
 #endif
 #include <dlfcn.h>
 
-#ifdef USEFFI
+#ifdef USE_FFI
 #include <ffi.h>
 #endif
 
@@ -76,7 +78,7 @@ void load_lib(char *fname) {
 	  panic(dlerror());
 }
 
-#ifdef USEFFI
+#ifdef USE_FFI
 #define MAXP 16
 
 typedef struct {
@@ -87,6 +89,7 @@ typedef struct {
 static ffi_type *ffi_decode(char c) {
      switch (c) {
      case 'C':
+     case 'S':
      case 'I':
           return &ffi_type_sint32;
      case 'L':
@@ -107,9 +110,10 @@ static ffi_type *ffi_decode(char c) {
      }
 }
 
-void dlstub(value *bp) {
+value *dlstub(value *bp) {
      value *cp = valptr(bp[CP]);
-     char *tstring = (char *) pointer(cp[CP_CODE]);
+     char *tstring = pointer(cp[CP_CODE]);
+     value *sp = bp;
 
      ffi_raw avals[MAXP], rval[2];
      int i, p = 0, q = 0;
@@ -121,6 +125,9 @@ void dlstub(value *bp) {
           switch (tstring[i+1]) {
           case 'C':
                avals[q].sint = align_byte(bp[HEAD+p].i);
+               p += 1; q += 1; break;
+          case 'S':
+               avals[q].sint = align_short(bp[HEAD+p].i);
                p += 1; q += 1; break;
           case 'I':
                avals[q].sint = bp[HEAD+p].i;
@@ -155,36 +162,42 @@ void dlstub(value *bp) {
           }
      }
 
-     wrapper *w = (wrapper *) pointer(cp[CP_CONST]);
+     wrapper *w = pointer(cp[CP_CONST]);
      ffi_raw_call(&w->cif, w->fun, rval, avals);
      
      switch (tstring[0]) {
      case 'C':
+     case 'S':
      case 'I':
-          ob_res.i = rval->sint;
+          (*--sp).i = rval->sint;
           break;
      case 'L':
           memcpy(&z, rval, sizeof(longint));
-          put_long(&ob_res, z);
+          sp -= 2;
+          put_long(sp, z);
           break;
      case 'F':
-          ob_res.f = rval->flt;
+          (*--sp).f = rval->flt;
           break;
      case 'D':
           memcpy(&d, rval, sizeof(double));
-          put_double(&ob_res, d);
+          sp -= 2;
+          put_double(sp, d);
           break;
      case 'P':
-          ob_res.a = rval->uint;
+          (*--sp).a = rval->uint;
           break;
      case 'Q':
-          put_long(&ob_res, (ptrtype) rval->ptr);
+          sp -= 2;
+          put_long(sp, (ptrtype) rval->ptr);
           break;
      case 'V':
           break;
      default:
           panic("Bad type 3");
      }
+
+     return sp;
 }
 #endif
 
@@ -210,11 +223,13 @@ primitive *find_prim(char *name) {
 
 #endif
 
-void dltrap(value *bp) {
+value *dltrap(value *bp) {
      value *cp = valptr(bp[CP]);
-     char *tstring = (char *) pointer(cp[CP_CODE]);
+     char *tstring = pointer(cp[CP_CODE]);
      char *name = tstring + strlen(tstring) + 1;
      primitive *prim = NULL;
+
+     if (*name == '=') name++;
 
      if (tstring[0] == '*')
           prim = find_prim(name);
@@ -227,35 +242,34 @@ void dltrap(value *bp) {
 
      if (prim != NULL) {
           cp[CP_PRIM].a = wrap_prim(prim);
-          (*prim)(bp);
-          return;
+          return (*prim)(bp);
      }
 
 #ifdef DYNLINK
-#ifdef USEFFI
+#ifdef USE_FFI
      /* Build a wrapper with FFI */
      void (*fun)(void) = (void(*)(void)) dlsym(RTLD_DEFAULT, name);
 
      if (fun != NULL && tstring[0] != '*') {
           int np = strlen(tstring)-1;
           ffi_type *rtype = ffi_decode(tstring[0]);
-          ffi_type **atypes =
-               (ffi_type **) scratch_alloc(np * sizeof(ffi_type *));
+          ffi_type **atypes = scratch_alloc_atomic(np * sizeof(ffi_type *));
           for (int i = 0; tstring[i+1] != '\0'; i++)
                atypes[i] = ffi_decode(tstring[i+1]);
 
-          wrapper *w = (wrapper *) scratch_alloc(sizeof(wrapper));
+          word a = virtual_alloc_atomic(sizeof(wrapper));
+          wrapper *w = ptrcast(wrapper, a);
           w->fun = fun;
           ffi_prep_cif(&w->cif, FFI_DEFAULT_ABI, np, rtype, atypes);
 
           cp[CP_PRIM].a = dynstub;
-          cp[CP_CONST].a = address(w);
+          cp[CP_CONST].a = a;
 
-          dlstub(bp);
-          return;
+          return dlstub(bp);
      }
 #endif
 #endif
 
      panic("Couldn't find primitive %s", name);
+     return NULL;
 }

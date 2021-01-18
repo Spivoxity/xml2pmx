@@ -37,18 +37,14 @@
 
 #include "config.h"
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
 #include "obcommon.h"
 
 #define SLIMIT 256		/* Min stack space space left (bytes) */
 
 typedef union value value;
 
-typedef void primitive(value *sp);
+typedef value *primitive(value *sp);
 
-typedef uint8_t byte;
 typedef uint32_t word;
 typedef uintptr_t ptrtype;
 
@@ -58,14 +54,38 @@ union value {
      word a;
 };
 
-#define valptr(v) ((value *) (ptrtype) ((v).a))
-#define pointer(v) ((byte *) (ptrtype) ((v).a))
+#define valptr(v)  ptrcast(value, (v).a)
+#define pointer(v) ptrcast(void, (v).a)
 
-#define address(p) ((word) (ptrtype) (p))
+#ifdef SEGMEM
+
+#define SEGBITS 20
+#define SEGMENT (1 << SEGBITS)
+#define SEGMASK ((1 << SEGBITS)-1)
+#define NSEGMENTS 4096
+
+#define stkaddr(p) (stack_vbase + ((uchar *) (p) - stack))
+#define dsegaddr(p) (data_vbase + ((uchar *) (p) - dmem))
+#define ptrcast(t, a) ((t *) physmap(a))
+
+extern void *segmap[];
+EXTERN word stack_vbase, data_vbase;
+
+static inline void *physmap(word a) {
+     return segmap[a >> SEGBITS] + (a & SEGMASK);
+}
+
+#else
+
+#define pun_memory(p) ((word) (ptrtype) (p))
+#define stkaddr(p) pun_memory(p)
+#define dsegaddr(p) pun_memory(p)
 #define ptrcast(t, a) ((t *) (ptrtype) (a))
 
+#endif
+
 #define codeaddr(p) ((p) - imem)
-#define codeptr(v) (imem + (v).a)
+#define codeptr(v) (imem + (v))
 
 typedef struct _proc *proc;
 typedef struct _module *module;
@@ -77,7 +97,7 @@ typedef uint64_t counter;
 
 struct _proc {
      const char *p_name;	/* Procedure name */
-     unsigned p_addr;		/* Address of descriptor in dmem */
+     word p_addr;		/* Address of descriptor in data space */
 #ifdef PROFILE
      int p_index;		/* Position in listing */
      unsigned p_calls;		/* Call count */
@@ -91,7 +111,7 @@ struct _proc {
 
 struct _module {
      char *m_name;		/* Layout must match proc */
-     uchar *m_addr;
+     word m_addr;
      int m_length;
 #ifdef PROFILE
      int m_nlines;
@@ -109,7 +129,7 @@ EXTERN char *libpath;		/* Path to dynamic library */
 EXTERN value *entry;		/* Program entry point */
 EXTERN value *gcmap;		/* Global pointer map */
 EXTERN word interpreter, dyntrap;
-#ifdef USEFFI
+#ifdef USE_FFI
 EXTERN word dynstub;
 #endif
 
@@ -130,23 +150,12 @@ EXTERN word dynstub;
 
 EXTERN int nmods, nprocs, nsyms;
 EXTERN module *modtab;
-EXTERN struct _proc *proctab;
+EXTERN proc *proctab;
 
 extern struct primdef {
      char *p_name;
      primitive *p_prim;
 } primtab[];
-
-#ifndef M64X32
-EXTERN value _result[2];        /* Procedure result */
-EXTERN value *statlink;		/* Static link for procedure call */
-#else
-EXTERN value *_result;
-EXTERN value **_stat;
-#define statlink (*_stat)
-#endif
-
-#define ob_res _result[0]
 
 EXTERN int level;		/* Recursion level in bytecode interp. */
 #ifdef OBXDEB
@@ -168,8 +177,8 @@ EXTERN char *debug_socket;
 
 /* profile.c */
 #ifdef PROFILE
-void prof_enter(value *p, counter ticks, int why);
-void prof_exit(value *p, counter ticks);
+void prof_enter(word p, counter ticks, int why);
+void prof_exit(word p, counter ticks);
 void prof_init(void);
 void prof_reset(proc p);
 void profile(FILE *fp);
@@ -186,7 +195,6 @@ primitive interp, dltrap, dlstub;
 EXTERN int saved_argc;
 EXTERN char **saved_argv;
 
-int obgetc(FILE *fp);
 void xmain_exit(int status);
 void error_exit(int status);
 
@@ -233,28 +241,25 @@ void dbl_zcheck(value *sp);
 
 word wrap_prim(primitive *prim);
 
-/* dynlink.c */
-void load_lib(char *fname);
-void dltrap(value *sp);
-
 /* load_file -- load a file of object code */
 void load_file(FILE *bfp);
 void load_image(void);
 
-module make_module(char *name, uchar *addr, int chsum, int nlines);
-proc make_proc(char *name, unsigned addr);
-void make_symbol(const char *kind, char *name, uchar *addr);
+void make_module(char *name, word addr, int chsum, int nlines);
+void make_proc(char *name, word addr);
+void make_symbol(const char *kind, char *name, word addr);
+void fix_sizes(int dseg);
 
 void panic(const char *, ...);
 void obcopy(char *dst, int dlen, const char *src, int slen, value *bp);
 
-void error_stop(const char *msg, int line, value *bp, uchar *pc);
+void error_stop(const char *msg, int val, int line, value *bp, uchar *pc);
 void runtime_error(int num, int line, value *bp, uchar *pc);
 void rterror(int num, int line, value *bp);
 void stkoflo(value *bp);
-#define liberror(msg) error_stop(msg, 0, bp, NULL)
+#define liberror(msg) error_stop(msg, 0, 0, bp, NULL)
 
-proc find_symbol(value *p, struct _proc *table, int nelem);
+proc find_symbol(word p, proc *table, int nelem);
 #define find_proc(cp) find_symbol(cp, proctab, nprocs)
 #define find_module(cp) ((module) find_symbol(cp, (proc *) modtab, nmods))
 
@@ -279,32 +284,43 @@ void put_long(value *v, longint w);
 double flo_conv(int);
 double flo_convq(longint);
 
-#ifdef SPECIALS
-int pack(value *code, uchar *env);
-value *getcode(int word);
-uchar *getenvt(int word);
-#endif
 
 /* gc.c */
 
 /* scratch_alloc -- allocate memory that will not be freed */
 void *scratch_alloc(unsigned bytes);
 
-/* gc_alloc -- allocate an object for the managed heap */
-void *gc_alloc(value *desc, unsigned size, value *sp);
+#ifdef USE_BOEHM
+/* scratch_alloc_atomic -- allocate memory that will not contain pointers */
+void *scratch_alloc_atomic(unsigned bytes);
+#else
+#define scratch_alloc_atomic(bytes) scratch_alloc(bytes)
+#endif
+
+#ifdef SEGMEM
+
+word virtual_alloc(unsigned bytes);
+word map_segment(void *base, unsigned length);
+#define virtual_alloc_atomic(bytes) virtual_alloc(bytes)
+
+#else
+
+#define virtual_alloc(bytes) pun_memory(scratch_alloc(bytes))
+#define virtual_alloc_atomic(bytes) pun_memory(scratch_alloc_atomic(bytes))
+
+#endif
+
+/* gc_alloc -- allocate an object on the managed heap */
+word gc_alloc(unsigned size, value *sp);
 
 /* gc_collect -- run the garbage collector */
-void gc_collect(value *xsp);
-
-/* gc_alloc_size -- calculate allocated size of and object */
-int gc_alloc_size(void *p);
+value *gc_collect(value *sp);
 
 /* gc_heap_size -- return size of heap */
 int gc_heap_size(void);
 
 extern mybool gcflag;
 void gc_init(void);
-void gc_debug(char *flags);
 void gc_dump(void);
 
 /* debug.c */
@@ -320,7 +336,7 @@ void debug_break(value *cp, value *bp, uchar *pc, char *fmt, ...);
 /* jit.c */
 #ifdef JIT
 void jit_compile(value *cp);
-void jit_trap(value *cp);
+value *jit_trap(value *cp);
 #endif
 
 #ifdef __cplusplus

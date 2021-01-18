@@ -1,36 +1,23 @@
 # src/Makefile
 
-TARGET = ../image.c
+OBCDIR = /usr/local/obc-3.2
+
+OBC = $(OBCDIR)/bin/obc
+OBLINK = $(OBCDIR)/lib/obc/oblink
+OBCLIB = $(OBCDIR)/lib/obc
+
 OBJS = MyFiles.k Strings1.k Fifo.k b.k Complete.k Testbed.k
 
-all: $(TARGET)
+all: ../image.c
 
-$(TARGET): xml2pmx.x preload
-	./preload $< >$@
-
-xml2pmx.x: $(OBJS)
-	obc $^ -o $@ 
-
-preload: preload.o
-	gcc $(CFLAGS) $^ -o $@
-
-CC = gcc
-CFLAGS = -I ..
-
-TEST := $(patsubst %,test-%,$(notdir $(wildcard ../test/*.xml)))
-
-test: $(TEST)
-
-test-%.xml: force
-	./xml2pmx.x ../test/$*.xml $*.pmx a 0
-	cmp ../test/$*.exp $*.pmx && echo "**PASSED**"
+../image.c: $(OBJS) force
+	$(OBLINK) -g -pl -L $(OBCLIB) $(OBJS) -C -p -o $@ >../primtab0.c
 
 %.k: %.m
-	obc -c -x $< -o $@
+	$(OBC) -c -x $< -o $@
 
 clean: force
-	rm -f *.k *.o preload
-	rm -f xml2pmx.x
+	rm -f *.k
 
 force:
 
