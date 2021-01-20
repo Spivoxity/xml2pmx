@@ -1,8 +1,5 @@
 MODULE Complete;
-IMPORT Strings := Strings1,  Out;
-
-TYPE LONGINT = INTEGER;
-
+IMPORT Strings, Out; (* Out := WCout; *)
 VAR pmxdur : ARRAY 10 OF ARRAY 4 OF CHAR; durvec : ARRAY 10 OF INTEGER; ixmax : LONGINT; 
 notetypexml: ARRAY 10 OF ARRAY 8 OF CHAR; notetypepmx: ARRAY 10 OF CHAR;  
 notetypei : ARRAY 10 OF INTEGER; (* inverse of notetype index 0 => 64 *)
@@ -47,7 +44,7 @@ notetypei : ARRAY 10 OF INTEGER; (* inverse of notetype index 0 => 64 *)
 
 
  PROCEDURE CalcForward* (note,div : INTEGER; VAR res : ARRAY OF CHAR);
-	VAR i : INTEGER; 	
+	VAR i,index, rest : INTEGER; 	
 	BEGIN	
 	i := 0; WHILE i < 8 DO durvec[i]:= 0 ; INC(i) END; (* erase durvec *)
 
@@ -89,7 +86,7 @@ notetypei : ARRAY 10 OF INTEGER; (* inverse of notetype index 0 => 64 *)
 	
 	PROCEDURE dur2beat* (duration,divisions : INTEGER; VAR beat, beattype : INTEGER);
 	(* calculates beat and beattype from duration of a measure *)	
-	VAR i : INTEGER;
+	VAR res : ARRAY 32 OF CHAR; i : INTEGER;
 	BEGIN
 		i := 0; WHILE i < 8 DO durvec[i]:= 0 ; INC(i) END; (* erase durvec *)
 
@@ -114,6 +111,17 @@ notetypei : ARRAY 10 OF INTEGER; (* inverse of notetype index 0 => 64 *)
 	dur2beat(36,48, beat, beattype);
 	END testdur2beat;
 	
+	PROCEDURE CalcDur (durvec : ARRAY OF INTEGER; VAR res : ARRAY OF CHAR);
+	(* durvec is a vector of 0s and 1s, so that res := sum (pmxdur[i] * durvec[i]; i := 0 to 6 )  
+	routine is made for detecting dots and double dots *)
+	VAR i : INTEGER;  pmxdur : ARRAY 7 OF CHAR; 
+	BEGIN
+
+	i := 0; WHILE durvec[i] = 0 DO INC(i) END; res[0] := pmxdur[i]; 
+	IF (i < 6) & (durvec[i+1] = 1) THEN Strings.AppendCh(res,"d"); 
+			IF ( i < 5 ) & (durvec[i+2] = 1) THEN Strings.AppendCh(res,"d"); END
+	END; Strings.AppendCh(res,0X);
+	END CalcDur;
 	PROCEDURE Durit(note,div : INTEGER);
 	VAR index, rest, i : INTEGER;
 	BEGIN
@@ -173,8 +181,8 @@ i := 0;	WHILE i < 7 DO durvec[i] :=  0; INC(i); END;
 i := 0;  WHILE i < LEN(res) DO res[i] := 0X; INC(i); END;
 Durit(intdur, divisions);
 blindrest (durvec, res);
-  Out.Ln();Out.String("divisions : "); Out.Int(divisions,5); Out.String("duration : "); 
-  Out.Int(intdur,5); Out.String("pmx-decomposition : "); Out.String(res); 
+(*  Out.Ln();Out.String("divisions : "); Out.Int(divisions,5); Out.String("duration : "); 
+  Out.Int(intdur,5); Out.String("pmx-decomposition : "); Out.String(res); *)
 END Int2br;
 
 PROCEDURE Dur2PMX* ( divisions, intdur : INTEGER; VAR res : ARRAY OF CHAR);
@@ -214,7 +222,7 @@ Dur2PMX (1024,1536,res);
 END testDur2PMX;
 PROCEDURE Complete* (from, to, divisions, measureduration : INTEGER; VAR before, after : ARRAY  OF CHAR); 
 		(* solves the problem of dangling notes created with the backup or forward statement of MusicXML *)
-	VAR beforedur, afterdur, i : INTEGER;
+	VAR beforedur, afterdur, index, rest, i : INTEGER;
 	BEGIN
 	beforedur :=  from - 1;
 	afterdur := measureduration - to;
@@ -242,4 +250,15 @@ BEGIN
 	pmxdur[6] := "r6b";
 	pmxdur[7] := "r7b";
 
-END Complete.
+END Complete.testdur2beat
+
+Complete.testdivdur
+
+Complete.TestFindDur
+
+
+Complete.testDur2PMX
+
+TestFindDur
+	
+	System.Free Complete

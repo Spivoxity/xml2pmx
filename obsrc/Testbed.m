@@ -1,7 +1,7 @@
 MODULE Testbed;  
 (***************************************************************************)
-(******************** Copyright 2015/2016/2017/2018 Dieter Gloetzel **************)
-(************************ Version014d Windows-Exe         *************************)
+(**************** Copyright 2015 --2021 Dieter Gloetzel ********************)
+(************************ Version016 multi platform  ***********************)
 (***************************************************************************)
 (*  This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -15,48 +15,16 @@ MODULE Testbed;
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
-(***************************************************************************)
-(* Recently solved problems (Feb. 04, 2017)
---  Volta cut-off
--- "Rl" and similar commands must be in top voice (lowest voice of lowest instrument)  of PMX.
--- stop slur and start slur on the same note  
--- variable keys per instrument  
--- <segno> and <coda> implemented in highest pitch voice 
---"\input musixtex" and "\input pmx" removed 
--- accent on a note implemented
--- open 11.2.2017: 
-	-- false "D" in tuplet; false statement removed (14.01.2017) ; 
-	-- remove chord in gracenote; solved 14.01.2017
-	-- remove slur over gracenote
-	-- +0+3 two times (xml error) ; solved 14.01.2017
-	-- management of slurs analogous to ties
-Recently solved 18.04.2017
-	--"D" and "d" in tuplet
-	-- binary tremoloes (PMX 2.80 only )
-	-- remove slurs inside grace notes
-	-- remove chord notes in grace note
-	-- simplified calculation of PMX duration
-Recently solved 19. 05. 2017
-	--avoid forced beam inside a tuplet
-	--link directions to a real note as opposed to grace note
-	--implicit meter change is recnogized and treated
-	--more output options, e.g. suppress all ties or/and suppress all slurs.
-	*)
+    (* corrections starting 09.07.2020    beam2pmx add "l" or "u" to "[j"    *)
+ IMPORT (* Texts, Strings, Files, Oberon, b, Complete, Out;  (*   Import fuer Oberon Version *) *)
+ (*  IMPORT Args32, Strings, Files, Out := WCout, b, Complete, Fifo ;  *)  (* Import fuer Windows-Exe Version  *)
+ 	 IMPORT Args, MyFiles, Strings:=String1, Out, b, Complete, Fifo;   (* Import for Linux-Version *)
 
-(*   IMPORT  Strings, Files, Texts, Oberon, b, Complete, Fifo, Out;  (*   Import for Oberon Version *) *)
-  (* IMPORT Kernel32, Strings, Files, Out := WCout, b, Complete, Fifo ; *)  (* Import for Windows-Exe Version *)
- 	 IMPORT Args, Files := MyFiles, Strings:=Strings1, Out, b, Complete;   (* Import for Linux-Version *)
-
-TYPE LONGINT = INTEGER;
 
 CONST 
-	NL = 0AX;  BLANK = 20X;  TAB = 09X;    CR = 0DX;  measurelimit = 1000;  
+	NL = 0AX;  BLANK = 20X;  (* TAB = 09X; *)    CR = 0DX;  measurelimit = 600;  
 TYPE 
-	(* OpenSlurDesc = RECORD
-				id : CHAR;
-	           ps, voice, measure, note : LONGINT;
-	           grace : INTEGER; 
-	  END; *)
+	LONGINT = INTEGER;
 	ControlDesc = RECORD  (* data structure of input data *)
 				xml, dtd: ARRAY 256 OF CHAR;  
 				title: ARRAY 128 OF CHAR;  
@@ -65,13 +33,6 @@ TYPE
 				parts: ARRAY 30 OF ARRAY 16 OF CHAR;  
 				instruments: ARRAY 30 OF ARRAY 32 OF CHAR;  
 				worknumber: ARRAY 32 OF CHAR;  
-						nostaves, noinst, mtrdenl, mtrnmp, mtrdnp,  isig: INTEGER;  
-				xmtrnum0 : LONGREAL;
-				npages, nsyst, musicsize: INTEGER;  
-				fracindent: REAL;  
-				clefs: ARRAY 24 OF CHAR;  
-				a3paper: BOOLEAN;  
-				concertkey : ARRAY 6 OF CHAR;
 				equalkeys : BOOLEAN;
 
 			END;  
@@ -85,16 +46,14 @@ TYPE
 				staves: INTEGER;  
 				clefsign: ARRAY 4 OF CHAR;   (* index is for staff *)
 				clefline: ARRAY 4 OF LONGINT; 
-				clef : ARRAY 4 OF CHAR; 
 				diatonic, chromatic: LONGINT;  
 				octave: LONGINT;   (* parameters in <transpose> *)
-				kstring: ARRAY 16 OF CHAR;   (* Ki statement in PMX for transposition *)
 			END;  
 	DirectionDesc = RECORD  (* data structure for directions *)
-				part, staff, measure, note, lastnote, nextnote, nextvoice, voice: LONGINT;   (* voice ? implizit ueber lastnote definiert *)
+				part, staff, measure, note, lastnote,   voice: LONGINT;   (* voice ? implizit ueber lastnote definiert *)
 				before: BOOLEAN;  
 				placement: CHAR;   (* "h" or  "l" for above and below *)
-				dirtype: CHAR;   (* words, metronome, dynamics, wedge= hairpin, pedal, other *)
+				dirtype: CHAR;   (* words, metronome, dynamics, wedge= hairpin, pedal, segno, coda, other *)
 				wedgetype: ARRAY 32 OF CHAR;   (* crescendo, diminuendo, stop crescendo and stop diminuendo *)
 				dyntype: ARRAY 16 OF CHAR;  
 				pedaltype: ARRAY 16 OF CHAR;   (* start, stop, *)
@@ -107,7 +66,7 @@ TYPE
 	NoteDesc = RECORD  (* properties of a note *)
 		accidental: ARRAY 10 OF CHAR;  
 		actual: INTEGER;  
-		arpeggio: BOOLEAN; 
+	(*	arpeggio: BOOLEAN;  *)
 	(*	base : INTEGER;  Base note of a chord *) 
 		beam, closebeam: ARRAY 16 OF CHAR;  
 		chord: CHAR; cue : BOOLEAN; 
@@ -118,20 +77,19 @@ TYPE
 		fermata: ARRAY 16 OF CHAR;  
 		from, to, duration: INTEGER;  
 		grace: INTEGER;  
-		lefttext, righttext: ARRAY 128 OF CHAR;  
-		maxarp, lastdirnum: INTEGER;  (* arpeggio ????? lastdirnum ist neu 29.11.2016 *)
+		lefttext, righttext: ARRAY 256 OF CHAR;  
 		maxbeam : LONGINT; (* number of beams for binary tremolo*)
 		normal: INTEGER;  
 		pitchoctave: INTEGER;  
 		pitchstep: CHAR;  
-		pmxgrace: ARRAY 16 OF CHAR;  
+		pmxgrace: ARRAY 32 OF CHAR;  (* Aenderung 16.11.2020 *)
 		pmxnote: ARRAY 32 OF CHAR;  
 		probj: BOOLEAN;   (* evaluates print-object = "no" TRUE means "print", FALSE don't print *)
 		rbleft, rbright: ARRAY 32 OF CHAR;   (* blind rests to fill incomplete measures *)
 		repeat: ARRAY 16 OF CHAR;  
 		rest, blind: CHAR;  
 		slur: ARRAY 2 OF ARRAY 8 OF CHAR;  
-		staccato,  accent, trill, strongaccent: ARRAY 6 OF CHAR;  
+		staccato,  accent, trill, strongaccent: ARRAY 8 OF CHAR;  
 		staff: INTEGER;  
 		stem: CHAR;  
 		tied: ARRAY 2 OF ARRAY 8 OF CHAR;  
@@ -151,46 +109,45 @@ TYPE
 				(* divisions : ARRAY 27 OF INTEGER;  *)
 				dur : INTEGER; (* measure actual length of a measure *)
 				clefchange : ARRAY 27 OF CHAR; (* Maerz 2018 *)
-				        relevant : ARRAY 27 OF BOOLEAN;
 			END;  
-	CopyClef = RECORD 
-				ps, measure, voice: LONGINT;  
-				clef: CHAR;  
-				before: INTEGER;  
-			END;  
-
+	
 VAR 
- lastbase : INTEGER; (* number of main note of a chord *)
+ 
    uptomeasure : LONGINT; (* global variable for reducing the number of measures *)
-	notes: POINTER TO ARRAY 27 OF ARRAY 3 OF ARRAY measurelimit OF
-          ARRAY 64 OF POINTER TO NoteDesc;
-        keytotal : ARRAY 132 OF CHAR;
-	unix: BOOLEAN;  outputcont : ARRAY 16 OF CHAR; outputset : SET;
-	voicemeasure: POINTER TO ARRAY 30 OF ARRAY measurelimit OF SET;  
+	
+	notes: POINTER TO ARRAY 24 OF ARRAY 3 OF ARRAY 600 OF ARRAY 83 OF POINTER TO NoteDesc;  (*20-10-2020 Lilypond2 *)
+	
+	(* 	notes: POINTER TO ARRAY 24  OF ARRAY 3 OF ARRAY 400 OF ARRAY 64 OF  NoteDesc;  *)
+
+	keytotal : ARRAY 132 OF CHAR; countclefchanges : LONGINT; 
+	unix: BOOLEAN;  outputcont : ARRAY 32 OF CHAR; outputset : SET;
+	voicemeasure: POINTER TO ARRAY 30 OF ARRAY 600 OF SET;  
 	voiceps: ARRAY 30 OF SET;  
 	voicelimmps: ARRAY 30 OF LONGINT;  
 	vmapps: ARRAY 30 OF ARRAY 5 OF LONGINT;  
-	minvoice, maxvoice: POINTER TO ARRAY 27 OF ARRAY measurelimit OF LONGINT;  
-	vmap: ARRAY 30 OF ARRAY measurelimit OF ARRAY 5 OF LONGINT;  
+	minvoice, maxvoice: POINTER TO ARRAY 27 OF ARRAY 600 OF LONGINT;  
+	vmap: ARRAY 30 OF ARRAY 600 OF ARRAY 5 OF LONGINT;  
+	(* notetypei : ARRAY 10 OF INTEGER;  inverse of notetype index 0 => 64 *)
 	
 	clefspec, lastclef: ARRAY 27 OF CHAR;   (*  special clef and valid clef in the actual measure *)
 	
-	voicelimm: ARRAY 30 OF ARRAY measurelimit OF LONGINT;  
-	sout : ARRAY 64 OF CHAR; (* target file path and directory *)
+	voicelimm: ARRAY 30 OF ARRAY 600 OF LONGINT;  
+	sout : ARRAY 128 OF CHAR; (* target file path and directory *)
 
 	(* controls#  voices within a staff and measure*)
 	voicecount: ARRAY 30 OF LONGINT;   (* counts different voices within a staff *) countnote, countattr, countdir : LONGINT;
+
 	ingrace2pmx: LONGINT;  
+	comline: ARRAY 255 OF CHAR;  
 	in, out: ARRAY 128 OF CHAR;  
 	lastto, lastfrom: INTEGER;   (* global variable for time progress in measure *)
-	(* clefchangemeasure: ARRAY 27 OF ARRAY 3 OF ARRAY measurelimit OF ARRAY 4 OF CHAR;  *)
-	pmxdur: ARRAY 8 OF CHAR;  
-	lastnote: LONGINT;   (* global variable for position of last note *)
+	pmxdur: ARRAY 16 OF CHAR;   (* global variable: duration of notes in PMX *)
+	lastnote : LONGINT;   (* global variable for position of last note *)
 	fi, fo: Files.File;  ri: Files.Rider;  
 	(* VAR notes : notestype; *)
 	voicetime: ARRAY 27 OF ARRAY 4 OF INTEGER;   (* progress  of notes duration in part,staff,voice, actual measure *)
 	lasttype: ARRAY 32 OF CHAR;   (* beam type of preceding note *)
-	laststaff: LONGINT;  
+	laststaff : LONGINT;  
 	closebeam: ARRAY 8 OF CHAR;   (* staff of preceding note for beam calculation *)
 	(* q: FIFO; *)  (* global variable for sorted notes queue *)
 	maxdir, i, j, part, staff, voice, measure, note, count, maxpart, maxmeasure, itags, maxgrace, controlpart, 
@@ -203,10 +160,10 @@ VAR
 	maxdirtype: ARRAY 2000 OF LONGINT;   (* vorlaeufig, nur zum Daten sammeln. *)
 	attributes: ARRAY 30 OF AttributesDesc;  
 	partstaff: ARRAY 30 OF ARRAY 2 OF LONGINT;  
-	(*	notes: ARRAY 30 OF ARRAY 2 OF ARRAY measurelimit OF ARRAY 64 OF NoteDesc;   Aenderung wegen voice numerierung *)
-	maxnote, maxnote0, maxnote1, minnote0, minnote1, minnote: ARRAY 30 OF ARRAY 3 OF ARRAY measurelimit OF LONGINT;  
+	(*	notes: ARRAY 30 OF ARRAY 2 OF ARRAY 500 OF ARRAY 64 OF NoteDesc;   Aenderung wegen voice numerierung *)
+	maxnote, maxnote0, maxnote1, minnote0, minnote1, minnote: ARRAY 30 OF ARRAY 3 OF ARRAY 600 OF LONGINT;  
 	(* number of last note in part/staff/measure *)
-	measures: POINTER TO ARRAY measurelimit OF MeasureDesc;  
+	measures: POINTER TO ARRAY 600 OF MeasureDesc;  
 	pmxcontrol: ControlDesc;  
 	accidentaltag, parttag, measuretag, notetag, pitchtag, steptag, octavetag, durationtag, voicetag, dottag, stemtag, cleftag, clefoctavetag, staccatotag: ARRAY 32 OF CHAR;  
 	attributestag, divisionstag, keytag, fifthstag, timetag, beatstag, beattypetag, stavestag, signtag, linetag, typetag, fermatatag, tuplettag: ARRAY 32 OF CHAR;  
@@ -214,11 +171,12 @@ VAR
 	cleflinetag, actualtag, normaltag, beamtag, wordstag, eonotetag, eomeasuretag, barlinetag, endingtag, barstyletag, dynamicstag, 
 	worktag, identificationtag, defaultstag, eoattributestag, forwardtag, eodirectiontag, credittag, gracetag, gracetag2, cuetag : ARRAY 32 OF CHAR;  
 	staves: ARRAY 30 OF LONGINT;   (*  maximum staff of "part" *)
-(*	tieunusdnum: ARRAY 27 OF ARRAY 3 OF SET;  
-	tieq: ARRAY 27 OF ARRAY 2 OF Fifo.FIFO;  
-	slur: ARRAY 27 OF Fifo.FIFO; *)
+
 	beamopen : ARRAY 30 OF ARRAY 3 OF BOOLEAN;
-(*	cl: Kernel32.LPSTR; *) (*  Command line for Windows.Exe  *) 
+(*	cl: Args32.LPSTR;  (*  Command line for Windows.Exe  *)  *)
+
+
+	
 	
 	PROCEDURE pmxtype( xmltype: INTEGER ): INTEGER;  
 	VAR i: INTEGER;  
@@ -247,7 +205,6 @@ VAR
 	(* Fills incomplete measures with blind rests, as needed *)
 	VAR note, part, staff, lastnote: LONGINT;  delta, lastto: INTEGER;  (* global "lastnote" removed 29.11.2016 *)
 	BEGIN 
-                lastto := 0; lastnote := 0;
 		part := partstaff[ps, 0];  staff := partstaff[ps, 1];  
 		
 		
@@ -262,7 +219,8 @@ VAR
 			
 			(* left of first note *)
 			note := notefrom;  
-			IF (notes[ps, voice, measure, note].from > 0) THEN 
+			IF (notes[ps, voice, measure, note] # NIL) & 
+			(notes[ps, voice, measure, note].from > 0) THEN 
 
 				delta := notes[ps, voice, measure, note].from - 1; (* Out.Ln();  Out.String( " note delta : " );  
 				Out.Int( note, 5 );  Out.Int( delta, 5 );  *)
@@ -276,8 +234,8 @@ VAR
 			INC( note );  
 			
 			WHILE (note <= noteto) DO 
-				IF (notes[ps, voice, measure, note] # NIL)
-                                    & (notes[ps, voice, measure, note].from > 0) THEN 
+			IF ( notes[ps, voice, measure, note] # NIL ) &
+				 (notes[ps, voice, measure, note].from > 0) THEN 
 					delta := notes[ps, voice, measure, note].from - lastto - 1;   
 				(*	Out.Ln();  Out.String( " note delta : " );  	Out.Int( note, 5 );  Out.Int( delta, 5 );  *)
 					
@@ -286,7 +244,11 @@ VAR
 						
 
 					END;  
-					lastnote := note;  lastto := notes[ps, voice, measure, note].to;  
+					lastnote := note;  
+					IF notes[ps, voice, measure, note] # NIL
+					THEN 
+					lastto := notes[ps, voice, measure, note].to;  
+					END 
 				
 				END;  
 				
@@ -294,7 +256,8 @@ VAR
 			END;  
 			(* right of last note *)
 			delta := measures[measure].duration[part] - lastto; 
-			   Out.Ln();  Out.Int(ps,5); Out.Int(measure,5);Out.String( " note delta : " );  			Out.Ln(); Out.Int( lastnote, 5 );  Out.Int( delta, 5 );  
+			 (*  Out.Ln();  Out.Int(ps,5); Out.Int(measure,5);Out.String( " note delta : " );  
+			 			Out.Ln(); Out.Int( lastnote, 5 );  Out.Int( delta, 5 );  *)
 			IF delta > 0 THEN 
 				Complete.Int2br( attributes[part].divisions, delta, notes[ps, voice, measure, lastnote].rbright );   
 
@@ -304,26 +267,37 @@ VAR
 	
 	END FillRests;  
 
-	PROCEDURE PMXdyn( XMLdyn: ARRAY OF CHAR;  VAR out: ARRAY OF CHAR );  
+	PROCEDURE PMXdyn( XMLdyn: ARRAY OF CHAR;  VAR out: ARRAY OF CHAR );   
 	(* converts e.g. <f /> to " Df "*)
 	BEGIN 
+	(* doubke on purpose *)
 		IF XMLdyn = "<f />" THEN COPY( " Df ", out );  END;  
 		IF XMLdyn = "<ff />" THEN COPY( " Dff ", out );  END;  
 		IF XMLdyn = "<fff />" THEN COPY( " Dfff ", out );  END;  
+		IF XMLdyn = "<ffff/>" THEN COPY( " Dffff ", out );  END;  
 		IF XMLdyn = "<mf />" THEN COPY( " Dmf ", out );  END;  
 		IF XMLdyn = "<p />" THEN COPY( " Dp ", out );  END;  
 		IF XMLdyn = "<pp />" THEN COPY( " Dpp ", out );  END;  
 		IF XMLdyn = "<ppp />" THEN COPY( " Dppp ", out );  END;  
-		IF XMLdyn = "<mp />" THEN COPY( " Dmp ", out );  END;  
+		IF XMLdyn = "<pppp />" THEN COPY( " Dpppp ", out );  END;  
+		IF XMLdyn = "<mp />" THEN COPY( " Dmp ", out );  END; 
+		IF XMLdyn = "<sf />"  THEN COPY( " Dsfz ", out );  END; 
+		IF XMLdyn = "<fp />"  THEN COPY( " Dfp ", out );  END;  
 		IF XMLdyn = "<f/>" THEN COPY( " Df ", out );  END;  
 		IF XMLdyn = "<ff/>" THEN COPY( " Dff ", out );  END;  
 		IF XMLdyn = "<fff/>" THEN COPY( " Dfff ", out );  END;  
+		IF XMLdyn = "<ffff/>" THEN COPY( " Dffff ", out );  END;  
 		IF XMLdyn = "<mf/>" THEN COPY( " Dmf ", out );  END;  
 		IF XMLdyn = "<p/>" THEN COPY( " Dp ", out );  END;  
 		IF XMLdyn = "<pp/>" THEN COPY( " Dpp ", out );  END;  
 		IF XMLdyn = "<ppp/>" THEN COPY( " Dppp ", out );  END;  
 		IF XMLdyn = "<pppp/>" THEN COPY( " Dpppp ", out );  END;
 		IF XMLdyn = "<mp/>" THEN COPY( " Dmp ", out );  END;  
+		IF XMLdyn = "<sf/>"  THEN COPY( " Dsfz ", out );  END;  
+		IF XMLdyn = "<fp/>"  THEN COPY( " Dfp ", out );  END;  
+
+ 
+
 		IF ( XMLdyn = "crescendo") & (lastdyn # " D<" ) THEN COPY( " D<", out );  COPY( out, lastdyn );  END;  (* 18.02.2017 *)
 		
 		IF ( XMLdyn = "diminuendo" ) & (lastdyn # " D>" ) THEN COPY( " D>", out );  COPY( out, lastdyn );  
@@ -344,52 +318,9 @@ VAR
 		Files.WriteBytes( W, s, Strings.Length( s ) );  
 	END WriteString;  
 
-(*	PROCEDURE writetext*;  
-	VAR i, j, istr, column: LONGINT;  breakline: BOOLEAN;  f: Files.File;  r: Files.Rider;  
-		s: ARRAY 4 OF CHAR;  
-	BEGIN 
-	Strings.Append(sout,"songtext.txt");
-Out.Ln();	Out.String("Storage for verses : "); Out.String(sout);
-		i := 0;  f := Files.New( sout );  Files.Set( r, f, 0 );  
-		WHILE i < nostaves DO 
-		istr := 1;
-		WHILE istr <= nstr[i] DO (*$$$$$$$$$$$$$*)
-			IF (Strings.Length( text[i,istr] ) > 0) THEN 
-				
-		(*		IF ~unix THEN Files.Write( r, CR );  	END;   *)
-				
-				Files.Write( r, NL );  Strings.IntToStr( i + 1, s );  WriteString( r, s ); 
-				Strings.IntToStr(istr,s); Files.Write(r,"|"); WriteString(r,s);
-				 j := 0;  column := 0;  
-				WHILE j < Strings.Length( text[i,istr] ) DO 
-					
-					REPEAT 
-						IF (text[i,istr, j] # "_") THEN Files.Write( r, text[i,istr, j] );  END;  
-						INC( j );  INC( column );  breakline := (column > 80) & (text[i,istr, j] = BLANK);  
-						IF breakline THEN 
-							IF ~unix THEN Files.Write( r, CR );  END;  
-							Files.Write( r, NL );  breakline := FALSE;  column := 0;  
-						END;  
-					
-					UNTIL (text[i,istr, j] = 0X) OR (text[i,istr, j] = BLANK);  
-					IF text[i,istr, j] = BLANK THEN Files.Write( r, BLANK );  END;  
-								
-					INC( j );  
-				END;  
-			END;  
-			
-			
-			INC(istr);	
-				IF ~unix THEN Files.Write( r, CR );  END;  
-				Files.Write( r, NL ); 
-		END;
-				IF ~unix THEN Files.Write( r, CR );  END;  				Files.Write( r, NL ); 
-			INC( i )
-		END;  
-		Files.Close( f );  Files.Register( f );  
-	END writetext;  *)
+
 	PROCEDURE SetOutput*;
-	VAR c : CHAR; i: LONGINT;
+	VAR c : CHAR; i : LONGINT;
 	PROCEDURE OutSet(s : SET);	VAR i : LONGINT;
 	BEGIN
 	i := 0; WHILE i < 32 DO IF (i IN s) THEN Out.Int(i,5); Out.Char("|") END; INC(i); END;	
@@ -399,7 +330,7 @@ Out.Ln();	Out.String("Storage for verses : "); Out.String(sout);
 	c := outputcont[i];
 	CASE c OF
  
-	 | "R"  : INCL(outputset,10);  (* remove notes with print-obj="no" in print phase; e.g. for  xml-files with programmed Trill 20-11-2019 *)  
+    | "R"  : INCL(outputset,10);  (* remove notes with print-obj="no" in print phase; e.g. for  xml-files with programmed Trill 20-11-2019 *)  
     | "P" : INCL(outputset,9); (* parser output 0 durch 9 ersetzt 20.05.2019 *)
 	| "D" : INCL(outputset,1); (* list directions *)
 	| "V" :  INCL(outputset,2); (* list voices per measure and instrument *)
@@ -429,19 +360,20 @@ Out.Ln();	Out.String("Storage for verses : "); Out.String(sout);
 
 	END commandO;  *)
 	
-(*		PROCEDURE commandX;  (* WIndows EXE *)
+	(*	PROCEDURE commandX;  (* WIndows EXE *)
 	VAR i: LONGINT;  c: CHAR;  
 	BEGIN 
-		Kernel32.Str( "Program XML2PMX.EXE Copyright 2016 Dieter Gloetzel" );  Kernel32.Ln();  
+		Args32.Str( "Program XML2PMX.EXE Copyright 2016 Dieter Gloetzel" );  Args32.Ln();  
 
-		cl := Kernel32.GetCommandLine();  Kernel32.CopyString( cl, comline );  Kernel32.Str( comline );  Kernel32.Ln();  
-		Filenames(comline,in,out,outputcont); 
+		cl := Args32.GetCommandLine();  Args32.CopyString( cl, comline );  Args32.Str( comline );  Args32.Ln();  
+		Filenames(TRUE,comline,in,out,outputcont); 
 		Stripfilename(out,sout); InOut( in, out );  
 	END commandX;   *)
 	PROCEDURE commandU; 
 	 VAR output : ARRAY 16 OF CHAR; kno : LONGINT;
 	BEGIN
-		kno := Args.argc;
+		IF Args.Static THEN
+		kno := Args.NoOfArgs;
 		IF ( kno >= 3 ) THEN
 			Args.GetArg(1, in); Out.Ln();Out.String(in);
 			Args.GetArg(2, out); Out.Ln(); Out.String(out);
@@ -456,13 +388,42 @@ Out.Ln();	Out.String("Storage for verses : "); Out.String(sout);
 				Out.Ln(); Out.String(" number of bars to be processsed : "); Out.Int(uptomeasure,5);
 Out.Ln(); END; 
 		Out.String( "Linux Binary XML2PMX Copyright 2016/2017 Dieter Gloetzel" );  Out.Ln();	
-			InOut(in, out); Out.Ln
+			InOut(in, out);
 		ELSE
 			Args.GetArg(0, in);
 			Out.String(in); Out.String(" error: argument number < 2 "); Out.Ln;
-		END
+		END;
+		Args.Shutdown(0);
+	END;
 	END commandU; 
 	
+	
+PROCEDURE Stripfilename(sin : ARRAY OF CHAR; VAR sout : ARRAY OF CHAR);
+(* Version Eduard + ":" Findet den ersten "/" oder " \" von hinten.  und speichert den Pfad in sout*)
+VAR i, j: LONGINT;
+BEGIN i := Strings.Length(sin);
+REPEAT DEC(i) UNTIL (i < 0) OR (sin[i] = "/") OR (sin[i] = "\") OR (sin[i] = ":");
+j := 0; WHILE (j <= i) & (j < LEN(sout) - 1) DO sout[j] := sin[j]; INC(j) END;
+sout[j] := 0X;
+Out.Ln(); Out.String('sin '); Out.String(sin); Out.String(' => '); Out.String(sout); Out.String(' sout')
+END Stripfilename; 
+
+
+
+	PROCEDURE Filenames(isEXE : BOOLEAN; VAR comline, infilename, outfilename, outputcontrol : ARRAY OF CHAR );  
+	VAR pos: LONGINT;  output : ARRAY 64 OF CHAR;
+	BEGIN 
+		pos := 0;  IF ( isEXE ) THEN WHILE  (comline[pos] # BLANK) DO INC(pos); END; END;
+	  (* 	Beim Exe wird der Befehl uebersprungen. *)
+		b.FindToken( comline, infilename, pos ); Out.Ln();Out.String( infilename );  Out.Ln();  
+		b.FindToken( comline, outfilename, pos );  Out.String( outfilename );  Out.Ln();
+		Out.String("outputcontrol : ");
+		b.FindToken( comline, output, pos ); Strings.Upper(output,outputcontrol);  Out.String( outputcontrol );  SetOutput;
+       b.voutput := (2 IN outputset); (* Option "V" : voices output for part staff, measure *)
+       b.FindToken( comline, output, pos ); Strings.StrToInt(output,uptomeasure);
+       Out.Ln(); Out.String("upper limit of measures : "); Out.Int(uptomeasure,5);
+	END Filenames;  
+
 	PROCEDURE Voicing( q: b.FIFO);  
 	(* calculates an array of Sets vontaining the voices for part, staff and measure. *)
 	VAR n: b.Tag;  
@@ -488,7 +449,7 @@ Out.Ln(); END;
 	END DeleteTag;
 	
 PROCEDURE DeleteTS (tag : ARRAY OF CHAR); (* deletes all ties or slurs according to "tag" *)
-	VAR n : b.Tag; count : LONGINT;
+	VAR n : b.Tag;    count : LONGINT;
 	BEGIN
 		n:= b.q.first; count := 0;
 		WHILE n.next # NIL DO 
@@ -511,7 +472,7 @@ PROCEDURE InOut( infilename, outfilename: ARRAY OF CHAR );
 		outfilenameprep: ARRAY 64 OF CHAR;  
 		fprep: Files.File;  rprep: Files.Rider;  res : INTEGER;
 	BEGIN 
-		Out.Ln();  Out.String( "This is XML2PMX.EXE Version 15." );  fi := Files.Old( infilename );  
+		Out.Ln();  Out.String( "This is XML2PMX.EXE Version 16. dyn. alloc." );  fi := Files.Old( infilename );  
 	IF (fi # NIL ) THEN  	(* 1*)
 				Files.Set( ri, fi, 0 );  
 			(***************************************)
@@ -597,37 +558,41 @@ PROCEDURE InOut( infilename, outfilename: ARRAY OF CHAR );
 					Out.Ln(); Out.String("9: progress done!");
 	(*		listmeter;*)
 
-				 IF 9 IN outputset THEN (* Option "p" *)
-				   n := b.q.first;  WHILE (n.next # NIL) DO b.OutTag(n,TRUE);
-				  				  	   n:= n.next; END;    
-				 END; 
-						
-				
+										
+			(*	 IF 1 = 0 THEN *)
 				(* 10. Store everything in arrays measurewise *)
 				EnumerateTags;  Out.Ln();  Out.String( " 10:  EnumerateTags done!" );  
-				Out.Ln(); Out.String("nach enumerate ");
+			
+				 IF 9 IN outputset THEN (* Option "p" *)
+				   n := b.q.first;  WHILE (n.next # NIL) & (n.measure < uptomeasure) DO b.OutTag(n,TRUE);
+				  				  	   n:= n.next; END;    
+				 END; 
+
 				(* listmeter;*)
 				(* 11.. Generate PMX and store in outfilename *)
-				Out.Ln();  Out.String( "list all direction-Types" );  DistributeDirections;  
+				Out.Ln();  Out.String( "list all direction-Types" ); 
+				(* 14.11.2020: Do not link directions to grace notes *)
+				(* IF (voice = 0) & (notes[ps,voice,measure,note].grace = 0 ) THEN *) DistributeDirections;  (* END; *)
 				WritePMX( rprep );  Out.Ln(); Out.String( "11: nach WritePMX" );  
 				(* 12. Remove multiple Blanks from result file and break lines after 100 Chars *)
 				Files.Register( fprep );  fo := Files.New( outfilename );  Copywo( fprep, fo, unix );  Files.Close( fi );  
 				Files.Close(fprep);				Files.Delete( outfilenameprep, res );  
 				 IF ( res = 0 ) THEN Out.Ln(); Out.String(" intermediate data deleted"); END;
-				Files.Register( fo );  Files.Close( fo );   Out.Ln();  Out.String( " PMX registered" );   	 
+				Files.Register( fo );  Files.Close( fo );   Out.Ln();  Out.String(out); Out.String( "  registered" );   	 
 				
+	(*	  END; *)
 		  
-		  
-		IF (4 IN outputset) THEN b.writetext;  
-		
-		END; (* Lyrics decoded appears in "songtext.txt" in the pmx directory. *)
+		IF (4 IN outputset) THEN b.writetext;  END; (* Lyrics is decoded in MODULE "b" and appears in "songtext.txt" in this directory. *)
 		
 		IF (3 IN outputset) THEN b.SortTags END; (* lists all occurences of XML-Tags. *)
 		ELSE 
 			Out.Ln(); Out.String("input file: "); Out.String(infilename); Out.String(" not found "); 
 	 END;
 
-		
+	(*	Out.Ln(); Out.String("countclefchanges : ");
+
+		Out.Int(countclefchanges,5); *)
+
 	END InOut;  
 
 
@@ -662,40 +627,53 @@ PROCEDURE InOut( infilename, outfilename: ARRAY OF CHAR );
 		lastdirtype: CHAR;  
 		posnote: ARRAY 64 OF INTEGER;  
 	BEGIN 
-                lastnote := 0;
 		idir := 1;  
 		WHILE idir <= maxdir DO 
 			j := 1;  
 			WHILE j <= maxdirtype[idir] DO 
-			IF (1 IN outputset) THEN	OutDir( idir, j ); END;  part := directions[idir, 0].part;  staff := directions[idir, 0].staff;  lastmeasure := measure;  
-				measure := directions[idir, 0].measure;  lastlastnote := lastnote;  lastnote := directions[idir, 0].lastnote;  
+		
+			
+			part := directions[idir, 0].part;  
+			staff := directions[idir, 0].staff;  lastmeasure := measure;  
+				measure := directions[idir, 0].measure;  
+				lastlastnote := lastnote;  lastnote := directions[idir, 0].lastnote;  
+				
+					
+					IF (1 IN outputset) THEN	 (* Print all directions *)			OutDir( idir, j ); 			END;  
+				
 				(*	IF lastnote = 0 THEN lastnote := 1 END; *)
-		(*		IF ( nr  = 20514 ) THEN no dynamics inside gracenotes *)
-				lastps := ps;  ps := linstaff( nostaves, part, staff );  firstnote := minnote0[part, staff, measure]; 
-				IF (notes[ps,0,measure,firstnote].grace > 0) THEN 
+						lastps := ps;  ps := linstaff( nostaves, part, staff );  firstnote := minnote0[part, staff, measure]; 
+		IF (notes[ps,0,measure,firstnote].grace > 0) THEN  (* first note is grace note and cannot carry dynamic marks *) 
+				
+				Out.Ln(); Out.String("DistrDir : ");Out.Int(ps,5); Out.Int(measure,5); Out.Int(firstnote,5); Out.Char("|");
+				Out.Int(notes[ps,0,measure,firstnote].grace,5 ); Out.Int(lastnote,5); 
 								
 				REPEAT INC(firstnote) UNTIL notes[ps,0,measure,firstnote].grace = 0;
 				Out.Ln(); Out.String(" first real note at ps, measure, note :"); Out.Int(ps,5); Out.Int(measure,5); Out.Int(firstnote,5); 
-				END;
+				Out.Char("|");	Out.Int(notes[ps,0,measure,firstnote].grace,5 );
+
+		END; 
 				CASE directions[idir, j].dirtype OF 
 				
-				"w": 
+				"w":  (* words, i.e. text *)
 						IF lastnote < firstnote THEN lastnote := firstnote END;  
 						
 						IF (notes[ps, 0, measure, lastnote].lefttext = "") THEN 
-							Strings.Append( notes[ps, 0, measure, lastnote].lefttext, directions[idir, j].pmxdirection );  
+							Strings.Append( notes[ps, 0, measure, lastnote].lefttext, directions[idir, j].pmxdirection ); (* pmxdirection pruefen *)
+							Out.Ln(); Out.String("idir,j,pmxdirection "); Out.Int(idir,5); Out.Char("|");Out.Int(j,5); Out.Char("|");
+							Out.String(directions[idir,j].pmxdirection);
 						
 						ELSE 
 							b.APPzca( notes[ps, 0, measure, lastnote].lefttext, directions[idir, j].pmxdirection );  
 							b.loesch( directions[idir, j].pmxdirection );  
 						END;  
 				
-				| "h": 
+				| "h":  (* hair pins *)
 						IF lastnote < firstnote THEN lastnote := firstnote END;  
 						IF ( lastnote > maxnote0[part,staff,measure] ) THEN lastnote := maxnote0[part,staff,measure] END; (* Modification 23.12.2016 *)
 						Strings.Append( notes[ps, 0, measure, lastnote].righttext, directions[idir, j].pmxdirection );  
 						lastdirtype := "h";  
-				| "d": 
+				| "d": (* dynamic marks *)
 						IF (directions[idir, j].lastnote = 0) & (directions[idir, j].defaultx = 0) THEN 
 							directions[idir, j].lastnote := firstnote;  lastnote := directions[idir, j].lastnote
 						ELSIF (directions[idir, j].lastnote > 0) & (directions[idir, j].lastnote < maxnote0[part, staff, measure]) THEN 
@@ -717,14 +695,14 @@ PROCEDURE InOut( infilename, outfilename: ARRAY OF CHAR );
 						(*	IF (notes[ps, 0, measure, lastnote].rest = "r") THEN  	(* avoid dynamics on rests. *)
 								REPEAT INC( lastnote ) UNTIL notes[ps, 0, measure, lastnote].rest # "r";   
 							END;  *)
-						
-                                                IF notes[ps, 0, measure, lastnote] # NIL THEN
-                                                  Strings.Append( notes[ps, 0, measure, lastnote].righttext, directions[idir, j].pmxdirection )
-                                                END;  
-						(* Out.String("***********");OutDir(idir,j); *)
-						lastdirtype := "d";   (* b.loesch( directions[idir, j].pmxdirection ); *)
-						
-				| "p": 
+						IF notes[ps, 0, measure, lastnote] # NIL THEN
+						Strings.Append( notes[ps, 0, measure, lastnote].righttext, directions[idir, j].pmxdirection );  
+					(*				Out.Ln(); Out.String("DistrDirections , lastnote, righttext :"); 
+									 Out.Int(measure,5);Out.Int(lastnote,5);  Out.String(notes[ps, 0, measure, lastnote].righttext); *)
+										END;
+
+						lastdirtype := "d";   		
+					| "p": 
 						INC( lastnote );  
 						IF lastnote < firstnote THEN lastnote := firstnote END;  
 						Strings.Append( notes[ps, 0, measure, lastnote].lefttext, directions[idir, j].pmxdirection );  
@@ -758,7 +736,7 @@ PROCEDURE InOut( infilename, outfilename: ARRAY OF CHAR );
 	PROCEDURE PMXDuration( tuplettype,tremolotype : ARRAY OF CHAR;  div, xmldur: INTEGER;  actual, normal: INTEGER;  
 											 VAR pmxdur: ARRAY OF CHAR;  istuplet: BOOLEAN;  type: ARRAY OF CHAR );  
 	(* Calculates the pmx-duration of a note (0,2,4,8,1,3,6) or rest from the XML-duration. Takes into account one dot and two dots		*)
-	VAR double: CHAR;  tupletdur,noteduration,  i : INTEGER;
+	VAR   double: CHAR;  tupletdur,noteduration,  i : INTEGER;
 	
 	
 	BEGIN 
@@ -796,48 +774,13 @@ ELSE (* normal notes *)
 	
 
 END;	
-(* 	IF (measure = 25) & istuplet THEN
-	Out.Ln(); Out.String(" div, xmldur, a tual, normal "); Out.Ln();
-	Out.Int(div,5); Out.Int(xmldur,5); Out.Int(actual,5); Out.Int(normal,5);
-	Out.Ln();
-	Out.String("tuplettype : "); Out.String(tuplettype);
-	Out.Ln();
-
-	Out.String("pmxdur : ");  Out.String(pmxdur); 
-	Out.Ln();
-	Out.String("type : " ); 	Out.String(type);
-	Out.Ln();
-END; *)
 
 END PMXDuration;  
-(*	PROCEDURE DelCue*;  
-	VAR nlast, n, m: b.Tag;  
-	BEGIN 
-		n := b.q.first;  
-		WHILE n.next # NIL DO 
-			IF (n.next.tagname = notetag) & (n.next.next.tagname = "<cue/>") 
-			THEN 
-				b.OutTag(n.next,TRUE);  (* n.next ist Note *)
-				b.OutTag(n.next.next,TRUE);
-				m := n.next;  
-				REPEAT m := m.next 
-				UNTIL m.tagname = eonotetag;  (* m ist last Tag of note *)
-				n.next := m.next; (* loescht komplette Note von n.next bis zum naechsten eonotetag. *) 
-			ELSE 
-				n := n.next;    
-				
-				(*	Out.Ln(); Out.String("ELSE : ");Out.Int(n.nr,5); Out.Int(n.next.nr,5); *)
-			END;  
-		
-		END;  (* WHILE loop *)
-		(* n := q.first; REPEAT n:= n.next UNTIL n.nr = 20530 ; WHILE i < 30 DO OutTag (n); n:= n.next; INC(i) END;*)
-	END DelCue;  *)
 
 
 	PROCEDURE DelTag*;  
 	VAR nlast, n, m: b.Tag;  
 	BEGIN 
-        	nlast := NIL;
 		n := b.q.first;  
 		WHILE n.next # NIL DO 
 			IF (n.next.tagname = notetag) & (n.next.probj = "n") THEN 
@@ -864,11 +807,7 @@ END PMXDuration;
 		END;  
 		(* n := q.first; REPEAT n:= n.next UNTIL n.nr = 20530 ; WHILE i < 30 DO OutTag (n); n:= n.next; INC(i) END;*)
 	END DelTag;  
-(*	PROCEDURE OutAtt ( part, measure,div, xmldur : LONGINT; pmxdur : ARRAY OF CHAR);
-	BEGIN
-	Out.Ln(); Out.String("part, measure,div,xmldur,pmdur : ");
-	Out.Int(part,5); Out.Int(measure,5); Out.Int(div,5); Out.Char("|");Out.Int(xmldur,5); Out.Char("|");Out.String(pmxdur);
-	END OutAtt; *)
+
 	
 
 
@@ -877,8 +816,8 @@ END PMXDuration;
 												  VAR istuplet: BOOLEAN );  
 	(* Writes the data for one note or rest to Files.Rider "W"; called by PROC. W ritePMX; *)
 	VAR pmxdur: ARRAY 16 OF CHAR;  sactual : ARRAY 4 OF CHAR;
-		pmxnote: ARRAY 32 OF CHAR;  blindrest : ARRAY 32 OF CHAR;
-		tremolo: ARRAY 16 OF CHAR;  maxinote : LONGINT;
+		pmxnote: ARRAY 64 OF CHAR;  blindrest : ARRAY 32 OF CHAR;
+		tremolo: ARRAY 32 OF CHAR;   maxinote : LONGINT;
 		octave: CHAR;  stemchar: CHAR;  maxnotelastmeasure : LONGINT;
 	
 	BEGIN 
@@ -887,23 +826,30 @@ END PMXDuration;
 	IF ( Note.grace # -1 ) THEN (* avoid chords as grace notes *) 
 	
 (*	IF (Wpos := Files.Pos(W); *)
-	
-		
-		part := partstaff[ps, 0];  staff := partstaff[ps, 1];  pmxnote[0] := BLANK;  pmxnote[1] := 0X;  
+	(* remove duplicate grace notes *)
+(* Out.Ln();	Out.Int(ps,5); Out.Int(voice,5); Out.Int(measure,5); Out.Int(note,5); Out.Int(Note.grace,5); *)
+ (*IF Note.grace > 1 THEN
+		Out.Ln();	Out.String("remove duplicates");Out.Int(Note.grace,5);
+
+		IF (Note.pmxnote # 0X) THEN Out.String(Note.pmxnote); END;	
+		b.loesch ( Note.pmxnote) ;	
+		 Out.Ln();   IF (Note.pmxgrace # 0X) THEN Out.String(Note.pmxgrace);END;	
+		   b.loesch ( Note.pmxgrace) ;
+		   END; 	*)
+
+
+			part := partstaff[ps, 0];  staff := partstaff[ps, 1];  pmxnote[0] := BLANK;  pmxnote[1] := 0X;  
 		COPY( Note.lefttext, Dtext );  (* 07.04.2017 *)
+		
+		IF (Note.clefchanged # 0X) THEN Files.Write(W,BLANK); Files.Write(W,"C"); Files.Write(W,Note.clefchanged); Files.Write(W,BLANK); END;
 		IF (Dtext[0] # 0X) THEN WriteString( W, Dtext );  END;  
 		IF (Note.rbleft[0] # 0X) THEN WriteString( W, Note.rbleft );  END; 
 
 		IF (Note.pitchstep # 0X) THEN 
 		(* Branch for normal notes, tuplet notes and  grace notes , as opposed to rests*)
 			(* 1 *)
-			INC( count );  (*  EInschub TEst Anfang  *)
-			(*	 Out.Ln(); Out.Int(ps,5); Out.Int(voice,5); Out.Int(measure,5); Out.Int(note,5);
-				Out.Char(" "); 
-				Out.Char(Note.pitchstep); Out.Char("|");
-				 Out.Char( Note.clefchanged );  Out.Char("|"); Out.Char( Note.clef ); *)
-              (*  EInschub TEst Ende *) 
-
+			INC( count );  
+		
 			istuplet := Note.actual # 0;  
 					
 				IF Note.grace =  0 THEN (* d.h. es ist keine Gracenote! *)
@@ -924,10 +870,10 @@ END PMXDuration;
 			
 					END; (*   3*)   
 			
-			IF (Note.grace = 1) THEN  (* 4*)
+			IF (Note.grace = 1) THEN  (*  ist erste einer Folge von grace notes *)
 				
 				Strings.Append( pmxnote, Note.pmxgrace ); 
-				(*  Out.Ln();  Out.String( " $$$$pmxgrace " );  Out.String( pmxnote );  *)
+		(*		 Out.Ln();  Out.String( " $$$$pmxgrace " );  Out.String( pmxnote );  *)
 			
 			END;   (* 4*)
 			
@@ -947,7 +893,7 @@ END PMXDuration;
 		THEN  
 					
 					 Strings.Append( pmxnote, Note.beam );  
-					 beamopen[ps,voice] := TRUE; (* 10.5.2017 *)
+					 beamopen[ps,voice] := TRUE; (* 10.5.2017                                    *)
 			
 			END;   (* 6*)
 			IF Note.trembeam > 0 THEN 
@@ -955,24 +901,30 @@ END PMXDuration;
 				b.pmxTremolo( Note.pitchstep, Note.pitchoctave, Note.stem, Note.clef, Note.trembeam, pmxdur[0], 
 										  tremolo );  
 				
-				Strings.Append( pmxnote, tremolo );  (* Out.Ln();  Out.String( "tremolo&&&&" );  Out.Int( ps, 5 );  
-				Out.Int( measure, 5 );  Out.String( tremolo );  *)
+				Strings.Append( pmxnote, tremolo );  
+				
+				Out.Ln();  Out.String( "tremolo&&&&" );  Out.Int( ps, 5 );  
+				Out.Int( measure, 5 );  Out.String( tremolo );  
 			
 			END;  
 			
 			Strings.AppendCh( pmxnote, Note.chord );  
-			IF Note.grace # 1 THEN  (* attention: suppress duplicate Grace notes *)  (* 7*)
+			IF Note.grace = 0 THEN  (* attention: suppress duplicate Grace notes *)  (* 7*) 
+			(* also normale Note "0" 18.11.2020*)
+
 				
 				
 				Strings.AppendCh( pmxnote, Note.pitchstep );  
-			END;   (* 7*)
+			END;   (* 7*)                                                                     
 			
 			IF (Note.chord # "z") THEN Strings.Append( pmxnote, pmxdur );  END;   (* 8*)
 			
 			octave := CHR( Note.pitchoctave + 48 );  
-			
-			IF Note.grace # 1 THEN Strings.AppendCh( pmxnote, octave );  (* also normale Note *)
-			Strings.Append( pmxnote, Note.accidental );  
+			IF Note.grace =  0 THEN Strings.AppendCh( pmxnote, octave );  (* also normale Note "0" 18.11.2020*)
+
+(*			IF Note.grace # 1 THEN Strings.AppendCh( pmxnote, octave );  (* also normale Note *) *)
+			Strings.Append( pmxnote, Note.accidental ); 
+			(* Out.Ln(); Out.String("accid in WriteNote2PMX"); Out.Int(measure,5);Out.String(Note.accidental); *)
 			END;   (* Dont forget accidentals for gracenotes *)  (* 9*)
 			(* test for basenote , find series of chord notes
 			IF Note.base # 0 THEN noteno := Note.base; 
@@ -1068,10 +1020,11 @@ IF (7 IN outputset) & ( ( note = 1 ) & (Note.grace = 0) & (  notes[ps,voice,meas
 			
 			(************************ clef changed *******************)
 			
-			IF (Note.clefchanged # 0X) THEN  (* 16*) 
+	(*		IF (Note.clefchanged # 0X) THEN  (* 16*) 
 			  (* There is a clef change after this note. *)
+			  Out.String("Note clefchanged"); Out.Char(Note.clefchanged);
 			
-			
+		(*	INC(countclefchanges); *)
 				(*	IF note < maxnote[part,staff,measure] THEN *)
 				maxinote := maxnote0[part,staff,measure]; 
 				 IF voice > voicefrom THEN maxinote := maxnote1[part, staff, measure] END;
@@ -1091,15 +1044,20 @@ IF (7 IN outputset) & ( ( note = 1 ) & (Note.grace = 0) & (  notes[ps,voice,meas
 
               END; 
 				(* NoteOut(Note); *)
-		END;   (* 16*)
+		END;   (* 16*) *)
 			
-			
-			COPY( pmxnote, Note.pmxnote );  WriteString( W, pmxnote );  
-			(* Out.String( pmxnote ); *)
+(*		Out.Ln();	Out.String("pmxnote vorher");Out.String(Note.pmxnote); *)
+		
+				COPY( pmxnote, Note.pmxnote );  WriteString( W, Note.pmxnote );  
+
+(*			IF Note.grace >1 THEN b.loesch(Note.pmxnote); 
+			b.loesch(Note.pmxgrace) END;  			Out.Ln(); Out.String(" Note.pmxnote" ); Out.Int(measure,5); Out.String( Note.pmxnote );
+			Out.String( Note.pmxgrace ); Out.Char("|"); Out.Int (Note.grace,5); *)
+ 
 			
 			(* Out.Int( Note.staff, 5 );  Out.Char( "|" );  
 		Out.Int( Note.voice, 5 );  *)
-			
+	
 		ELSIF (Note.rest = "r") THEN  (* Branch for Rests *)  (* 1*)
 			
 			INC( count );   (* this note is a rest! *)
@@ -1144,17 +1102,17 @@ IF (7 IN outputset) & ( ( note = 1 ) & (Note.grace = 0) & (  notes[ps,voice,meas
 
 		
 END;
-	(*		IF Note.blind = "b" THEN Strings.AppendCh( pmxnote, "b" );  END;   (* 18*)  obsolete 15.01.2017 *)
+	
 			
 			Strings.AppendCh( pmxnote, BLANK );  
-			IF (Note.clefchanged # 0X) THEN  (* 16*) (* clef change on the fly, activated 14. Maerz 2018 *)
+		(*	IF (Note.clefchanged # 0X) THEN  (* 16*) (* clef change on the fly, activated 14. Maerz 2018 *)
 				(*	IF note < maxnote[part,staff,measure] THEN *)
 				Strings.Append( pmxnote, " C" );  Strings.AppendCh( pmxnote, Note.clefchanged );  
 				Strings.AppendCh( pmxnote, BLANK );  
 				Out.Ln(); Out.Int(ps,5); Out.Int(voice,5); Out.Int(measure,5); Out.Int(note,5);
 				Out.String( "cleffy" );  Out.Char( Note.clefchanged );  Out.Char( Note.clef ); 
 				(* NoteOut(Note); *)
-			END;   (* 16*) 
+			END;   (* 16*)  *)
 			
 			COPY( pmxnote, Note.pmxnote );  WriteString( W, pmxnote );  
 		
@@ -1166,19 +1124,16 @@ END;
 	END;   (* 19*) *)
 		(*  directions within measures are written *)
 		COPY( notes[ps, voice, measure, note].righttext, Rtext );  
+	(*	 Out.Ln(); Out.String("WriteNote2PMX : "); Out.Int(ps,5); Out.Int(voice,5); Out.Int(measure,5); Out.Int(note,5); Out.String (Rtext); 
+		
+		Out.Int(notes[ps, voice, measure, note].grace,5); *)
 		
 		IF (Rtext[0] # 0X) (* & ( ~written ) *) THEN WriteString( W, Rtext );  
 		END;  
 		IF (Note.rbright[0] # 0X) THEN WriteString( W, Note.rbright );  END;  
 		(*	Out.Ln();Out.String("measure,ps,voice,note");
 		Out.Int(measure,5); Out.Int(ps,5); Out.Int(voice,5); Out.Int(note,5); Out.Int(Note.voice,5);Out.String(pmxnote); *)
-		(* TEstausdruck 22.6.2019 *)
-	(*	IF notes[ps, voice, measure, note].repeat # 0X THEN
-		Out.Ln();
-		Out.Int(ps,5); Out.Int(voice,5); Out.Int(measure,5); Out.Int(note,5);
-		Out.String("repeat"); Out.String(notes[ps, voice, measure, note].repeat);
-	END; *)	
-		(* "maxnote" is the last note in part/staff/measure, minnote is the first note in part/staff/measure *)
+			(* "maxnote" is the last note in part/staff/measure, minnote is the first note in part/staff/measure *)
 		(*	IF ( note = maxnote[part, staff, measure]  )*)  (* Aenderung 22.12.2015: introduce voice dependence *)
 		(* "maxnote" is the last note in part/staff/measure, minnote is the first note in part/staff/measure *)
 		IF (note = maxnote[part, staff, measure]) OR ((note = maxnote0[part, staff, measure]) & (voice = 0)) OR 
@@ -1193,7 +1148,7 @@ END;
 				END;  
 			END;  
 		
-					Files.Write(W,BLANK); Files.Write( W, "/" );   			(* Print "/" for  end of single  voice  . *)
+					Files.Write(W,BLANK); Files.Write( W, "/" );     (* Print "/" for  end of single  voice  . *)
 		
 		END;  
 		IF Note.tuplet = "stop" THEN istuplet := FALSE END;  
@@ -1209,15 +1164,13 @@ END;
 	(* Creates and stores the notes part of the PMX file (starting with "% Bar 1"). after the Control Data *)
 	VAR voice, staff, voicefrom, voiceto, nnotes, notefrom, noteto : LONGINT; concertkey : ARRAY 10 OF CHAR; 
 		Dtext, Rtext: ARRAY 128 OF CHAR;  
-		keychange, dummy: ARRAY 32 OF CHAR; keychanged : BOOLEAN; 
-		
+		keychange, dummy: ARRAY 32 OF CHAR; keychanged : BOOLEAN; 		
 		blindmeterchange: ARRAY 16 OF CHAR;  
 		istuplet: BOOLEAN;  minmeasure: LONGINT;  ipickup: INTEGER;  
 		(* decides whether direction is written before or after the note. *)
 		restbefore, restafter: ARRAY 16 OF CHAR;  
 	
 	BEGIN 
-		keychanged := FALSE;
 		ipickup := 0;  
 		IF attributes[1].pickup > 0 THEN ipickup := 1;  END;  
 		(* Write transposition string s *)
@@ -1277,24 +1230,31 @@ END;
    END;  
 			
 			WHILE (ps >= 0) DO 
-				part := partstaff[ps, 0];  staff := partstaff[ps, 1];  
+				part := partstaff[ps, 0];  staff := partstaff[ps, 1];
+				
+							
+				
+				
 				(* neuer Code: shift to voice := 0,1   *)
-				voiceto := voicelimm[ps, measure] - 1;  voicefrom := 0; voice := voicefrom;    
-				IF voiceto > 1 THEN voiceto := 1 END; (* this line only for testing BWV0826; to be removed. *)
+				voiceto := voicelimm[ps, measure] - 1;  voicefrom := 0; voice := voicefrom;   
+			(*	IF voiceto < 0 THEN voiceto := 0; END; *)
+				 
+				  (*	Out.Ln();			Out.String("measure, part, staff, voicefrom, voiceto:");
+				  	
+				  	Out.Int(measure,5);				Out.Int(part,5);  Out.Int(staff,5);
+				  	
+				  	Out.Int(voicefrom,5); Out.Int(voiceto,5); *)
+				   
+				     
+			(*	IF voiceto > 1 THEN voiceto := 1 END; (* this line only for testing BWV0826; to be removed. *) *)
 				WHILE voice <= voiceto DO 
 					nnotes := 0;  WriteString( W, "% " );  Files.Write( W, "(" );  WriteLInt( W, part );  
 					Files.Write( W, "|" );  WriteLInt( W, staff );  Files.Write( W, "|" );  WriteLInt( W, vmap[ps, measure, voice] );  
 					Files.Write( W, ")" );    WriteLInt( W, measure - ipickup );  Files.Write( W, CR );  
 					Files.Write( W, NL );  
-					IF ( voice = voicefrom ) & ( measures[measure].clefchange[ps] # 0X)  THEN 
 
-						(***    Maerz 2018       ********************Transfer clefchange  from last note to new measure! ****************************************************)
-						 						
-							Files.Write( W, "C"); Files.Write(W,  measures[measure].clefchange[ps]);  Files.Write(W,BLANK);
 
-							  
-						END;  
-					
+									
 					
 					b.loesch( Dtext );  b.loesch( Rtext );  
 					(**********************  Meter Change *******************)
@@ -1303,14 +1263,19 @@ END;
 						    (measures[measure].beattype # measures[measure - 1].beattype) THEN 
 						    IF measures[measure].beattype >0 THEN
 							b.NewBeat( measures[measure].beats, measures[measure].beattype, 
-												 measures[measure].meterchange, FALSE );  END;
-					(*	IF measures[measure].beattype # 0 THEN Nummer 1 beattype*)
+												 measures[measure].meterchange, FALSE );  
+					                                                                                           (* 20-10-2020 Lilypond *)
 								attributes[part].duration := 
-								measures[measure].beats*4* attributes[part].divisions  DIV measures[measure].beattype; (*  END; *)
+								measures[measure].beats*4* attributes[part].divisions  DIV measures[measure].beattype;  
+								ELSE 
+								 Out.Ln(); 
+								 Out.String("PROC. WritePMX: measure = "); 
+								 Out.Int(measure,5);
+								  END; 
 
 							(*	measures[measure].divisions[part] *)  					
 									measures[measure].duration[part] := attributes[part].duration ; 
-							IF (ps = nostaves - 1) & (voice = voicefrom) THEN  (* change 09.05.2020 *)
+							IF (ps = nostaves - 1) & (voice = voicefrom) THEN 
 								Files.Write( W, CR );  Files.Write( W, NL );  WriteString( W, measures[measure].meterchange );  
 								Out.Ln();  Out.String( " measure, meterchange : " );  Out.Int( measure, 5 );  
 								Out.String( measures[measure].meterchange );  Files.Write( W, CR );  Files.Write( W, NL );  
@@ -1318,7 +1283,7 @@ END;
 						END;  
 					END;  
 					(*	 blind meter change in case of Pickup.  *)
-					IF (attributes[1].pickup > 0) & (measure = 2) & (ps = nostaves - 1) & (voice = 0 ) THEN  (* change 09.05.2020 *)
+					IF (attributes[1].pickup > 0) & (measure = 2) & (ps = nostaves - 1) & (voice = voicefrom) THEN (* Change  09.05.2020 *)
 						b.NewBeat( attributes[1].beats, attributes[1].beattype, blindmeterchange, TRUE );  
 
 						WriteString( W, blindmeterchange );  Files.Write( W, CR );  Files.Write( W, NL );  
@@ -1360,18 +1325,17 @@ END;
 					(* do not extend 1st measure in case of pickup. *)
 					
 					WHILE note <= noteto DO  (* 1 *)
-						IF measure = 25 THEN Out.Ln(); Out.String("25"); Out.Int(note, 5); END; (* Probeausdruck 04.05.2020 *)
-						IF (notes[ps, voice, measure, note] # NIL) &
-                                                      (Strings.IsAlpha( notes[ps, voice, measure, note].pitchstep) OR
-                                                        (notes[ps, voice, measure, note].rest = "r"))
+					IF (notes[ps, voice, measure, note] # NIL) &
+						 (Strings.IsAlpha( notes[ps, voice, measure, note].pitchstep ) OR 	 (notes[ps, voice, measure, note].rest = "r")) 
 						(*  note OR rest *)
-						(*	29.3.2020:   & ( ( notes[ps, voice, measure, note].probj = TRUE ) OR
-                                                            ( (11 IN outputset) & ( notes[ps, voice, measure, note].probj = FALSE )  ) ) *)
-							  
+											  
 
 							   (* remove print-object="no". 26.07.2019*)
 							  THEN (* CHANGE 11.Juli 2019: remove print-object = "no" notes *)
-						IF ~ (10 IN outputset) OR ( notes[ps, voice, measure, note].probj = TRUE ) THEN (* remove notes with print_obj = "no"  04.05.2020 *)
+									IF ~ (10 IN outputset) OR ( notes[ps, voice, measure, note].probj = TRUE ) THEN 
+													(* Option "r" :  remove notes with print_obj = "no"  04.05.2020 *) 
+						
+						
 							WriteNote2PMX( W, notes[ps, voice, measure, note]^, ps, voice, voicefrom, measure, note, Dtext, 
 														 Rtext, istuplet );  
 							b.loesch( restbefore );  b.loesch( restafter );  
@@ -1379,7 +1343,7 @@ END;
 							INC( nnotes );  
 							
 							(* b.loesch(Rtext); b.loesch(Dtext); *)
-							END;
+							END; 
 							
 						END;  
 						INC( note ); 	(* IF voice = 1 THEN Out.Ln(); Out.String("Count notes of 2nd voice. ");Out.Int(note,5);				END; *)
@@ -1388,10 +1352,10 @@ END;
 					(* Measure Properties go here *) ;  
 					(*	WriteString(W," | /");  *)
 					IF ( voicelimm[ps,measure] = 2 ) & (voice =  0) & (nnotes > 0) 
-					  &  (	((notes[ps,0,measure,minnote1[part,staff,measure]] # NIL)
-                                                 & (notes[ps, 0, measure, minnote1[part,staff,measure]].probj = TRUE))
-  				              OR ~ ( 10 IN outputset ) )
 				  
+				   &  (	((notes[ps,0,measure,minnote1[part,staff,measure]] # NIL)
+				  & (notes[ps, 0, measure, minnote1[part,staff,measure]].probj = TRUE))
+				  OR ~ ( 10 IN outputset ) )
 					(* second slash removed because second voice eliminated. Change 04.05.2020 *)
 		 			THEN 
 								 
@@ -1405,52 +1369,30 @@ END;
 				DEC( ps );  
 			END;  
 			INC( measure );  
-		END; Out.Ln(); Out.String(" Divisions : ");
-		i := 1; WHILE i <= maxpart DO Out.Ln(); Out.Int(i,5); Out.Int(attributes[i].divisions,5); INC(i);END;  
+		END; (* Out.Ln(); Out.String(" Divisions : ");
+		i := 1; WHILE i <= maxpart DO Out.Ln(); Out.Int(i,5); Out.Int(attributes[i].divisions,5); INC(i);END;  *)
 	END WritePMX;
-	PROCEDURE ListMeasures*;
+	
+(*	PROCEDURE ListMeasures*;
 	VAR i,j : LONGINT;
 	BEGIN
 	Out.Ln(); Out.String("ListMeasures");
-	i := 1; WHILE i <= maxmeasure DO
+	i := 1; 
+	WHILE i <= maxmeasure DO
 	
-	Out.Ln(); Out.Int(i, 5); Out.Int( measures[i].beats, 5); Out.Int(measures[i].beattype,5); Out.Int ( measures[i].fifth , 5); 
-	j := 1;  WHILE j<=maxpart DO  Out.Int(measures[i].keys[j],5); INC(j); END;  INC(i); END;
+		Out.Ln(); Out.Int(i, 5); Out.Int( measures[i].beats, 5); Out.Int(measures[i].beattype,5); Out.Int ( measures[i].fifth , 5); 
+		j := 1;  
+	
+			WHILE j<=maxpart DO  Out.Int(measures[i].keys[j],5); INC(j); END;  INC(i); END;
+	
+	
 	(*	j := 1;  WHILE j<maxpart DO  Out.Int(measures[i].duration[j],5); INC(j); END;  INC(i); END; *)
 
 	
 	
-	END ListMeasures; 
+	END ListMeasures; *)
   
 
-(*	PROCEDURE FillMeasures;
-	(*  Fills measure table with keys of parts *)
-	VAR i, measure : LONGINT; sum : LONGINT;
-	BEGIN
-	Out.String("before");
-	ListMeasures;
-		measure := 1;
-		WHILE ( measure < maxmeasure ) DO
-			i := 1; sum := 0; 
-			WHILE i <= maxpart DO
-				INC(sum,ABS(measures[measure+1].keys[i]-measures[measure].keys[i]));
-				INC(i);
-			END;
-			IF ( sum = 0 ) THEN (*  means: no change at next bar *)
-				i := 1; 
-				WHILE ( i <= maxpart ) DO
-					measures[measure+1].keys[i] := measures[measure].keys[i];
-					INC(i);
-				END	
-			END;
-			INC(measure);
-		END;
-		(*Test$$$*)
-		Out.Ln(); Out.String("FillMeasures : "); 
-		Out.String(" after");
-		ListMeasures; 
-			(* Test$$$ *)
-	END FillMeasures;  *)
 
 
 
@@ -1487,10 +1429,9 @@ END;
 
 	PROCEDURE beam2PMX( n: b.Tag;  VAR pmxbeam: ARRAY OF CHAR;  stem: CHAR;  staff: LONGINT );  
 	(* Translates a beginning or ending or continued beam from XML to PMX. staff is the staff of the beam element *)
-	VAR c, j: CHAR;  m: b.Tag;  
+	VAR c, j, stemj: CHAR;  m: b.Tag;  
 		type, number: ARRAY 32 OF CHAR;  
 	BEGIN 
-		c := "?";
 		b.loesch( pmxbeam );  COPY( n.between, type );  b.FindAtt( n, "number", number );  b.loesch( closebeam );  j := 0X;  
 		IF (number = "1") THEN  (* 1*)
 			COPY( BLANK, pmxbeam );  
@@ -1513,7 +1454,10 @@ END;
 			IF (j = "j") (* neuer Code fuer joined beams *)
 			THEN 
 				Strings.AppendCh( pmxbeam, j );  
-				IF c = "[" THEN Strings.AppendCh( pmxbeam, "f" );  Strings.AppendCh( pmxbeam, BLANK );  END;  
+				IF c = "[" THEN Strings.AppendCh( pmxbeam, "f" );  (* flip l/u *)
+				
+					stemj := "u"; IF stem = "u" THEN stemj := "l"; END;  
+					Strings.AppendCh( pmxbeam, stemj ); Strings.AppendCh( pmxbeam, BLANK );  END;  
 				(*  Out.String("pmxbeam");  Out.String(pmxbeam); Out.Char("|"); *)
 			ELSE 
 				IF (c = "[") THEN 
@@ -1535,7 +1479,7 @@ END;
 	    orientation = "d" => note with stem down yields tie with orientation "u".
 	 orientation = "u" => note with stem up yields tie with orientation "l". *)
 	VAR c: CHAR;  
-		number: ARRAY 32 OF CHAR;  orient : ARRAY 32 OF CHAR; orientation : CHAR;
+		number: ARRAY 32 OF CHAR;  orient : ARRAY 10 OF CHAR; orientation : CHAR;
 		nt: Fifo.Node;  
 	
 	BEGIN 
@@ -1611,7 +1555,7 @@ END;
 	
 	VAR nograce: LONGINT;  isgrace: BOOLEAN;  
 		slash, type, stem: ARRAY 32 OF CHAR;  
-		snograce, str: ARRAY 4 OF CHAR;  
+		snograce,str,accpmx: ARRAY 4 OF CHAR;  ns : CHAR; no : LONGINT;
 	BEGIN 
 		b.loesch( res );  
 		WHILE (n.next # NIL ) & (n.tagname # eonotetag) DO  (* loop over all tags of the note 1 *)
@@ -1631,7 +1575,7 @@ END;
 				notes[ps, voice, measure, note].pitchoctave := b.ExtractInt( n.between );  (* Out.String( n.between );  *)
 			END;  
 			Accidentals(n,ps,voice,measure,note); 
-			
+			(* Out.Ln(); Out.String("note1 accidental"); Out.String(notes[ps, voice, measure, note].accidental); *)
 			IF (n.tagname = "<type>") THEN 
 				COPY( n.between, type ); (* Out.String( n.between ); *)   (* 6 *)
 			END;  
@@ -1642,12 +1586,12 @@ END;
 			
 					
 			n := n.next;  
-		END;   (* 1 *)
+		END;   (* 1 *) (* Daten der ersten Grace-Note *)
 		
 		
-		nograce := maxgrace;  (* Out.Ln();  Out.String( "grace : n#gracenotes" );  Out.Int( nograce, 5 ); *) res[0] := BLANK;  
+		nograce := maxgrace;  (* Out.Ln();  Out.String( "grace : n#gracenotes" );  Out.Int( nograce, 5 ); *)  res[0] := BLANK;  
 
-		Strings.IntToStr( nograce, snograce );  res[0] := "G";  res[1] := 0X;  Strings.Append( res, snograce );  
+		Strings.IntToStr( nograce, snograce);  res[0] := "G";  res[1] := 0X;  Strings.Append( res, snograce );  
 		Strings.AppendCh( res, "m" );  
 		IF (type = "eighth") THEN Strings.AppendCh( res, "1" )
 		ELSIF (type = "16th") THEN Strings.AppendCh( res, "2" )
@@ -1661,11 +1605,50 @@ END;
 		
 		Strings.AppendCh( res, notes[ps, voice, measure, note].pitchstep );  
 		Strings.IntToStr( notes[ps, voice, measure, note].pitchoctave, str );  Strings.Append( res, str );  
-		Strings.AppendCh( res, BLANK );  Strings.AppendCh( res, 0X );  
-
-		(* Out.String( "pmxGrace : " );  Out.String( res ) *)
+	 Strings.Append(res,notes[ps,voice,measure,note].accidental); 	Strings.AppendCh( res, BLANK ); Strings.AppendCh( res, 0X ); 
+	 (* 1st gracenote and config *)
+		 n := n.next;	
+		 (* b.OutTag(n,TRUE); *)
+				
+			WHILE (nograce >1) & isgrace DO 
+		(*	Out.Ln(); Out.Int(nograce,5); *)
+				Findnextgrace (n,isgrace,ns,no,accpmx);
+         Strings.AppendCh(res,BLANK); Strings.AppendCh(res,ns);
+		 Strings.IntToStr( no,str); Strings.Append(res,str); IF(accpmx[0] # 0X) THEN Strings.Append(res,accpmx) END;
+		 n := n.next; DEC(nograce); (*	Out.Ln(); Out.String(res);  %%%%% *)
+		 END;	 
+		
 	
-	END grace;  
+	END grace; 
+	PROCEDURE Findnextgrace* (VAR n : b.Tag; VAR isgrace : BOOLEAN; VAR notestep : CHAR; 
+																		VAR noteoctave : LONGINT; VAR accpmx : ARRAY OF CHAR );
+		(* Neu 14.11.2020: Anbindung der weiteren grace-Noten an Hauptnote 
+		prerequisite n ist zweite Note der Verzierung *) 
+
+	BEGIN
+	notestep := 0X; noteoctave := -1; accpmx[0] := 0X; isgrace := FALSE;
+		WHILE ( n.next # NIL ) & (n.tagname # eonotetag) DO
+			IF n.tagname = gracetag THEN  isgrace := TRUE; END;
+			IF n.tagname = steptag THEN notestep := Strings.LowerCh(n.between[0]);  END;
+			IF n.tagname = octavetag THEN noteoctave := b.ExtractInt(n.between);  END;
+			IF n.tagname = "<accidental>" THEN 
+				IF( n.between = "sharp") THEN Out.String("sharp"); COPY( "s", accpmx ); 	END;							
+				IF ( n.between = "flat") THEN 		COPY( "f", accpmx ); END; 					 					
+				IF (n.between = "double-sharp") OR (n.between = "sharp-sharp") THEN COPY( "ss", accpmx ); END;
+				IF (n.between = "flat-flat") OR (n.between = "double-flat") THEN COPY( "ff", accpmx ); END;
+				IF (n.between = "natural") THEN COPY( "n", accpmx );  END;
+			END;
+						  
+		
+					
+			n:= n.next; 
+		END; (* WHILE *)
+		(*	 Out.Ln(); Out.String("Findnextgrace");  Out.Int(measure,5);
+							 Out.Char(notestep); Out.Int(noteoctave,5);Out.String(accpmx); *)
+END Findnextgrace;	
+	
+	
+	 
 	PROCEDURE OutDir( i, j: LONGINT );  
 	BEGIN 
 		Out.Ln();  Out.String( " OutDir : " );  Out.Int( i, 5 );  Out.Int( j, 5 );  Out.Int( directions[i, 0].part, 5 );  
@@ -1682,19 +1665,18 @@ END;
 	PROCEDURE NotesProp( part, staff, voice, measure: LONGINT;  VAR note: LONGINT;  VAR n: b.Tag );  
 	(* stores notes information in an array with indices [ps,voice,measure,note] for later use in the generation measure 
 		by measure; "part" and "staff" are combined in one index "ps". *)
-	VAR pmxslur, pmxtied, pmxbeam, type, pmxrepeat, pmxgrace: ARRAY 32 OF CHAR;  
-		number, ntype, mtype: ARRAY 32 OF CHAR;  
+	VAR pmxslur, pmxtied, pmxbeam, type, pmxrepeat, pmxgrace : ARRAY 32 OF CHAR;  
+		number, ntype, mtype: ARRAY 32 OF CHAR;  placement : ARRAY 32 OF CHAR;
 		m: b.Tag;  
 		defaultxs: ARRAY 32 OF CHAR;  (* openslur : ARRAY 1000 OF OpenSlurDesc; *)
 		ps, defaultx, long : LONGINT;  
 	
 	BEGIN 
-		nties := 0;  ps := linstaff( nostaves, part, staff );
-                NEW(notes[ps, voice, measure, note]);
-                notes[ps, voice, measure, note].voicetime := n.voicetime;  
+		nties := 0;  ps := linstaff( nostaves, part, staff );  
+		 NEW( notes[ps, voice, measure, note] ); 
+		notes[ps, voice, measure, note].voicetime := n.voicetime;  
 		notes[ps, voice, measure, note].cue := n.cue;
-		notes[ps, voice, measure, note].from := n.from;
-                notes[ps, voice, measure, note].to := n.to;  
+		notes[ps, voice, measure, note].from := n.from;  notes[ps, voice, measure, note].to := n.to;  
 		(*	Out.Ln(); Out.String("NotesProp voice + voice : ");
 		Out.Int(part,5);Out.Int(staff,5);Out.Int(measure,5);Out.Int(voice,5); Out.Int(n.voice,5); 
 		Out.Int(note,5);Out.Int(n.from,5);Out.Int(n.to,5); Out.Int(n.voicetime,5); *)
@@ -1709,9 +1691,12 @@ END;
 		IF (n.probj = "n") THEN notes[ps, voice, measure, note].probj := FALSE
 		 ELSE  notes[ps, voice, measure, note].probj :=TRUE; END;
 		notes[ps, voice, measure, note].clef := lastclef[ps];  
+		IF ( n.newclef # 0X ) THEN 
+		notes[ps,voice, measure, note].clefchanged := n.newclef; (* 17.10.2020 new Implemtation od clef *)
+		(* Out.Ln(); Out.String("in NotesProp : "); Out.Char(n.newclef); *)
+		END;
 		b.FindAtt( n, "default-x", defaultxs );  Strings.StrToInt( defaultxs, defaultx );  
-		notes[ps, voice, measure, note].defaultx := SHORT( defaultx );
-                notes[ps, voice, measure, note].from := n.from;  
+		notes[ps, voice, measure, note].defaultx := SHORT( defaultx );  notes[ps, voice, measure, note].from := n.from;  
 		notes[ps, voice, measure, note].to := n.to;  
 		
 		(* clef change on bar change 
@@ -1740,19 +1725,26 @@ END;
 				b.arplen( n, maxarp );  notes[ps, voice, measure, note].maxarp := SHORT( maxarp );  Out.Ln();  
 				Out.String( "maxarp" );  Out.Int( maxarp, 5 );  
 			END;  *)
-			IF (n.grace > 0) THEN notes[ps, voice, measure, note].grace := n.grace;  END;  
+			IF (n.grace > 0) THEN notes[ps, voice, measure, note].grace := n.grace;  
+			(* Out.Ln(); Out.String(" notesprop : "); Out.Int(ps,5); Out.Int(voice,5); Out.Int(measure,5); Out.Int(note,5); Out.Int(n.grace,5); *)
+			END;  
 			IF (n.grace > 0 ) & ( n.chord ="c" ) THEN notes[ps, voice, measure, note].grace :=-1 END;
 			(* eliminate chord notes in grace *)
 			IF (n.grace = 1) THEN b.gracelen( n, maxgrace );  (* Out.Ln();  Out.String( "maxgrace" );  Out.Int( maxgrace, 5 );  *)
 
 				grace( n, ps, voice, measure, note, maxgrace, pmxgrace );  
 				
-				(*	Out.Ln();  Out.String( "NotesProp nach PROC grace : " );  Out.Int( ps, 5 ; );  Out.Int( part, 5 );  
-				Out.Int( staff, 5 );  Out.Int( voice, 5 );  Out.Int( measure, 5 );  Out.Int( note, 5 );   *)
+		(*			Out.Ln();  Out.String( "NotesProp nach PROC grace : " );  Out.Int( ps, 5) ;   Out.Int( part, 5 );  
+				Out.Int( staff, 5 );  Out.Int( voice, 5 );  Out.Int( measure, 5 );  Out.Int( note, 5 );
+				 Out.Int(notes[ps, voice, measure, note].grace,5); Out.Char("|"); *)
+				  
 				
 				COPY( pmxgrace, notes[ps, voice, measure, note].pmxgrace );  
 
-				(* Out.String( notes[ps, voice, measure, note].pmxgrace );  *)
+	(*			Out.String( notes[ps, voice, measure, note].pmxgrace );  *)
+			 
+
+
 				
 				(*		ELSIF n.grace > 1 THEN 
 				
@@ -1782,8 +1774,7 @@ END;
 				laststaff := notes[ps, voice, measure, note].staff		END;   *)
 				(*	IF (n.tagname = voicetag) THEN notes[ps, voice, measure, note].voice := b.ExtractInt( n.between ) 		END;  *)
 				IF (n.tagname = dottag) OR (n.tagname = "<dot />") OR (n.tagname = "<dot>") THEN 
-					IF notes[ps, voice, measure, note].dot = "d" THEN
-                                                notes[ps, voice, measure, note].dot := "D";  
+					IF notes[ps, voice, measure, note].dot = "d" THEN notes[ps, voice, measure, note].dot := "D";  
 					ELSE notes[ps, voice, measure, note].dot := "d"
 					END;  
 				END;  
@@ -1816,24 +1807,28 @@ END;
 							IF (n.tagname = resttag) OR (n.tagname = "<rest>") OR (n.tagname = "</rest>") THEN 
 					notes[ps, voice, measure, note].rest := "r";  
 				END;  
-				IF (n.tagname # chordtag) & ( n.tagname # "<chord>" ) THEN lastbase := SHORT( note ) END; (* store main note of a chord *)
+				(* IF (n.tagname # chordtag) & ( n.tagname # "<chord>" ) THEN  lastbase := SHORT( note ) END;  store main note of a chord *)
 				IF (n.tagname = chordtag) OR (n.tagname = "<chord>") THEN notes[ps, voice, measure, note].chord := "z";  
 				(*  notes[ps, voice, measure, note].base  := lastbase; *)  END;  
 				IF (n.tagname = fermatatag)  THEN  (* keine Fermata im Tuplett. *)
-					b.FindAtt( n, "type", type );  COPY( " of", notes[ps, voice, measure, note].fermata );  
-					IF type = "inverted" THEN Strings.Append( notes[ps, voice, measure, note].fermata, "d " );  END;  
+					b.FindAtt( n, "type", type );  COPY( " of", notes[ps, voice, measure, note].fermata );
+					  
+					IF ( type = "inverted")  THEN Strings.Append( notes[ps, voice, measure, note].fermata, "d " );  END;  
 				END;  
 				(* prepare for binary tremolo ! *)
 				IF (n.tagname = beamtag) THEN  (* counts the beams in one note *)
 						b.FindAtt(n, "number",number);
 						Strings.StrToInt(number,notes[ps,voice,measure,note].maxbeam)
 				END;
-				IF ( n.tagname = "<tremolo>" ) THEN
+				IF ( n.tagname = "<tremolo>" ) (* & (measure = 166) *) THEN
 					b.FindAtt(n, "type",notes[ps,voice,measure,note].tremolotype);
-					(* Out.Ln(); Out.String("tremolotype : "); Out.String(notes[ps,voice,measure,note].tremolotype); *)
+					 Out.Ln(); Out.String("tremolotype : "); Out.String(notes[ps,voice,measure,note].tremolotype); 
+					Out.Ln(); Out.String("BEams in tremolo : "); Out.String(n.between); (*&&&&&&&*)
+					Strings.StrToInt(n.between, notes[ps,voice,measure,note].maxbeam);
+					
 				END; 
 
-				IF (n.tagname = slurtag) THEN					
+				IF (n.tagname = slurtag)  THEN					
 						b.slur2PMX( n, pmxslur , outputset);  	COPY(pmxslur,  notes[ps, voice, measure, note].slur[0] ) ;
 					 (*   Out.Ln(); Out.Int(ps,5); Out.Int(voice,5); Out.Int(measure,5); Out.Int(note,5); Out.String(pmxslur);
 					    openslur.ps := ps; openslur.voice := voice; openslur.measure := measure; openslur.note := note; 
@@ -1902,12 +1897,20 @@ END;
 						END;  
 					END;  
 				END;  
-			 IF n.tagname = "<trill-mark/>" THEN COPY (" oT0 ", notes[ps, voice, measure, note].trill); END; 
+			 IF ( n.tagname = "<trill-mark>" ) OR ( n.tagname = "<trill-mark/>" ) THEN COPY (" oT0 ", notes[ps, voice, measure, note].trill); END; 
 				IF n.tagname = staccatotag THEN COPY( " o. ", notes[ps, voice, measure, note].staccato );  END;  
-					IF n.tagname = "<accent>" THEN COPY( " o> ", notes[ps, voice, measure, note].accent );  END;  
-								IF n.tagname = "<strong-accent>" THEN COPY( " o^ ", notes[ps, voice, measure, note].strongaccent );  END;  
+					IF (n.tagname = "<accent>" ) OR (n.tagname = "<accent />" ) OR  (n.tagname = "<accent/>" ) 
+					THEN 
+       					b.FindAtt( n, "placement", placement );				
+					   COPY( " o>", notes[ps, voice, measure, note].accent );  
+					   	IF ( placement = "below") 		THEN 
+						Strings.Append(notes[ps, voice, measure, note].accent,"-12 ") END;
+						Strings.AppendCh(notes[ps, voice, measure, note].accent," ");
+					END;    
+								IF ( n.tagname = "<strong-accent>") OR ( n.tagname = "<strong-accent/>") OR ( n.tagname = "<strong-accent />")
+					 			  THEN COPY( " o^ ", notes[ps, voice, measure, note].strongaccent );  END;  
 
-					IF n.tagname = "<arpeggiate>" THEN notes[ps,voice,measure,note].arpeggio := TRUE; END;  (* 22. November 2019 $$$$$$$ *)
+			(*		IF n.tagname = "<arpeggiate>" THEN notes[ps,voice,measure,note].arpeggio := TRUE; END;  (* 22. November 2019 $$$$$$$ *) *)
 				IF n.tagname = tuplettag THEN 
 					b.FindAtt( n, "type", type );  COPY( type, notes[ps, voice, measure, note].tuplet )
 				END;  
@@ -2004,7 +2007,7 @@ END;
 				END;  
 				IF (n.tagname = beattypetag) THEN 
 					attributes[part].beattype := b.ExtractInt( n.between );  
-				(*	measures[measure].beattype := attributes[part].beattype; versuch: 19.5.2017 *)
+				
 				END;  
 				
 				IF (n.tagname = stavestag) THEN 
@@ -2019,7 +2022,7 @@ END;
 				
 				IF (n.tagname = cleftag) THEN 
 					ReadClef( n, sign, line, staff );  attributes[part].clefsign[staff] := sign;  
-					attributes[part].clefline[staff] := line;  Out.Ln();  Out.String( "------" );  Out.Int( part, 5 );  
+					attributes[part].clefline[staff] := line;  Out.Ln();  Out.String( "attProp------" );  Out.Int( part, 5 );  
 					Out.Int( staff, 5 );  Out.Char( sign );  Out.Char( "|" );  Out.Int( line, 5 );  
 				END;  
 				
@@ -2063,7 +2066,7 @@ END;
 		PROCEDURE Enrich( q: b.FIFO );  
 	(* 1. Read voice and staff; store as notes attribute;
 	    2. Calculates maxnote, minvoice,maxvoice,minVoice,maxVoice; *)
-	VAR n, m: b.Tag;  notevoice, notestaff : LONGINT;  duration, backup, B: LONGINT;   
+	VAR n, m: b.Tag;  notevoice, notestaff : LONGINT;  duration, backup,  B: LONGINT;   
 	
 	BEGIN 
 		
@@ -2103,7 +2106,7 @@ END;
 			END;  
 			IF (n.tagname = directiontag) THEN b.FindIProperty( n, directiontag, stafftag, staff );  n.staff := staff;  
 			b.findnextnote (n,m); IF m # NIL THEN n.nextnote := m.note; 
-				b.FindIProperty( m, notetag, voicetag, voice );  n.nextvoice := voice;   END; (* voice of next note "m" *)
+				b.FindIProperty( m, notetag, voicetag, voice );  n.nextvoice := voice;   END; (* voice of next note "m"&&&&& *)
 			END;  
 			IF (n.tagname = backuptag) THEN 
 			(* Out.Ln();Out.String("******************* Backup"); *)
@@ -2111,7 +2114,7 @@ END;
 				WHILE (m.next # NIL ) & (m.tagname # notetag) DO 
 		(*		 Out.Ln(); Out.String("backup-m");					b.OutTag(m,FALSE);  *)
 					m := m.next ;
-			 END;  (* hier werden Daten weggelesen, bis zur narchsten Note *)
+			 END;  (* hier werden Daten weggelesen, bis zur naechsten Note *)
 						                                                                                                        (*   und dann der backup der Note zugeordnet *)
 			(*	IF m.grace > 0 THEN 
 					WHILE 
@@ -2139,33 +2142,9 @@ END;
 	
 	END VOICE01;  
 
-(*	PROCEDURE CopyClefVoice*;  
-	VAR clefct, ps, measure, part, staff, before, voice: LONGINT;  clef: CHAR;  
-	BEGIN 
-		Out.Ln(); Out.String("in Copyclef : "); Out.Int(countclef,5);
-		IF countclef > 0 THEN 
-			clefct := 1;  
-			WHILE clefct <= countclef DO 
-				ps := copyclef[clefct].ps;  measure := copyclef[clefct].measure;  clef := copyclef[clefct].clef;  
-				before := copyclef[clefct].before;  part := partstaff[ps, 0];  staff := partstaff[ps, 1];  
-				note := minnote1[part, staff, measure] - 1;  voice := 1;  
-				Out.Ln(); Out.String("CopyClefVoice  "); Out.Int(ps,5); Out.Int(measure,5); Out.Int(before,5); Out.Char(clef);
-				REPEAT 
-					INC( note );   (* NoteOut(notes[ps,voice,measure,note]); *)
-				UNTIL (note = maxnote1[part, staff, measure]) OR (notes[ps, voice, measure, note].to = before);  
-				
-				IF (notes[ps, voice, measure, note].to = before) THEN
-                                        notes[ps, voice, measure, note].clefchanged := clef;  
-				END;  
-				
-				INC( clefct );  
-			END;  
-			
-		END;  
-	
-	END CopyClefVoice;   *)
+
 	 PROCEDURE Accidentals(n : b.Tag; ps, voice, measure, note : LONGINT);			
-	VAR 
+	VAR   
 		cautionary, editorial, parentheses 	: ARRAY 32 OF CHAR;  
 	BEGIN			
 			IF (n.tagname) = accidentaltag THEN  (* 5 *)
@@ -2199,9 +2178,8 @@ END;
 
 	PROCEDURE EnumerateTags*;  
 	(* runs through the list of tags and calls NotesProp and MeasuresProp and lists the tag-data in System.Log *)
-	VAR n: b.Tag; voice01: LONGINT;  
+	VAR n: b.Tag;   voice01: LONGINT;  
 	BEGIN 
-        	voice01 := 0;
 		n := b.q.first; 
 		Out.Ln();  Out.String( "EnumerateTags : " );  
 		Out.String( "part, staff, voice, measure, note, tag, names/values, between" );  Out.Ln();
@@ -2227,6 +2205,7 @@ END;
 			IF (n.tagname = attributestag) THEN AttributesPropM( voice01, measure, n );  
 			INC (countattr); END;  
 					(* geaendert 8.1.2016: lastnote -> note *)
+	(*				IF 1 =0 THEN *)
 			IF (n.tagname = directiontag) THEN DirectionProp( n,voice01 ); 	INC(countdir) ;END;  
 			MeasureProp( measure, n );   (* OutTag( n ); *)
 			n := n.next
@@ -2246,22 +2225,26 @@ INC
 		attributes[part].diatonic,attributes[part].chromatic,attributes[part].octave,kstring);
 		Out.Char("|"); Out.String(kstring); COPY(kstring,attributes[part].kstring); *)
 			INC( part );  
-		END;  *)
+		END;                                                                                                                                            *)
 		ps := 0;  
 		WHILE ps < nostaves DO part := partstaff[ps, 0];  
    (* Calculate durations for all instruments and measures *)
 			measure := 1;  
 			WHILE measure <= maxmeasure DO 
-	(*		IF measures[measure].beattype > 0 THEN  Nummer 2 beattype*)
-				measures[measure].duration[part] := 
+						
+						IF measures[measure].beattype > 0 THEN   (* 20.10.2020 Lilypond *)
+					
+						measures[measure].duration[part] := 
 					measures[measure].beats*4*attributes[part].divisions 
-					(* measures[measure].divisions[part] *) DIV measures[measure].beattype;   (* Division durch 0 *)
-			(*		END; *)
+								DIV measures[measure].beattype;   (* Division durch 0 *)
+
+			 
+						END; 
 				INC( measure );  
 			END;  
 			INC( ps );  
 		END; 
-	 
+(*	 END; (* Fake End *) *)
 (* 	ListMeasures;   $$$$ *)
 		(* prvoicetime;  *)
 	(*	CopyClefVoice;  *)
@@ -2271,14 +2254,14 @@ INC
 
 	PROCEDURE DirectionProp( VAR n: b.Tag; voice01 : LONGINT );  
 	VAR endtag, placement, type, res: ARRAY 128 OF CHAR;  
-		dirnum, dirtypenr : LONGINT;  defaultx: LONGINT;  
-		defaultxs: ARRAY 32 OF CHAR;  
+		dirnum, dirtypenr : LONGINT;  defaultx: LONGINT;  sbeatunit : ARRAY 32 OF CHAR;
+		defaultxs: ARRAY 32 OF CHAR;  rehtext : ARRAY 32 OF CHAR; (* fuer rehearsal marks *)
 	BEGIN 
 	(* Out.Ln(); Out.String("in direction prop"); *)
 
 		IF (n.tagname = directiontag) THEN  (* 1 *)
 		
-			(* OutTag( n );  *)
+		(*	b.OutTag( n, TRUE );  *)
 			COPY( n.endtag, endtag );  part := n.part;  measure := n.measure;  dirnum := n.dirnum;  staff := n.staff;  
 			directions[dirnum, 0].part := n.part;  directions[dirnum, 0].measure := n.measure;  voice := n.voice;  
 			directions[dirnum, 0].staff := staff;  directions[dirnum, 0].used := FALSE;   (* allow usage of direction only once. *)
@@ -2287,6 +2270,10 @@ INC
 			
 			directions[dirnum, 0].note := n.note;  directions[dirnum, 0].lastnote := n.lastnote; (* -1 ;   Versuch 21. Mai  => Absturz *)
 			directions[dirnum,0].voice := voice01; (* changed 22.12.2016 *)
+			
+			IF measure = 96 THEN Out.Ln(); Out.String("DirectionProp : dirnum, note | lastnote "); 
+			Out.Int(dirnum,5); Out.Int(n.note,5); Out.Char("|");Out.Int(n.lastnote,5); 
+						END; 
 
 			(* CheckVoice(ps,measure,n.lastnote); *)
 			(* the direction is stored at this note *)
@@ -2337,18 +2324,13 @@ INC
 						IF directions[dirnum, dirtypenr].note = 0 THEN directions[dirnum, dirtypenr].note := 1;  END;  
 						directions[dirnum, dirtypenr].placement := "l";  
 					ELSIF (n.tagname = "<metronome>") THEN  (* 3 .5*)
-						directions[dirnum, dirtypenr].placement := "h";  directions[dirnum, dirtypenr].dirtype := "w";  
+						directions[dirnum, dirtypenr].placement := "h";  directions[dirnum, dirtypenr].dirtype := "w";  (* Metronom ist "w" *)
 						WHILE (n.next # NIL ) & (n.tagname # "</metronome>") DO 
-							IF n.tagname = "<beat-unit>" THEN 
-								IF (n.between = "quarter") THEN COPY( "\metron{\qu}", directions[dirnum, dirtypenr].text );  
-								ELSE COPY( n.between, directions[dirnum, dirtypenr].text );  
-								END;  
-							END;  
-							IF n.tagname = "<per-minute>" THEN 
-								Strings.AppendCh( directions[dirnum, dirtypenr].text, "{" );  
-								Strings.Append( directions[dirnum, dirtypenr].text, n.between );  
-								Strings.AppendCh( directions[dirnum, dirtypenr].text, "}" );  Out.Ln();  
-								Out.String( "metronome : " );  Out.String( directions[dirnum, dirtypenr].text );  
+							IF n.tagname = "<beat-unit>" THEN COPY (n.between,sbeatunit) END;  
+							  
+							IF n.tagname = "<per-minute>" THEN b.metron2PMX (sbeatunit,n.between,directions[dirnum,dirtypenr].text);
+							(*	Out.String( "metronome : " ); *) 
+							(* 	Out.String( directions[dirnum, dirtypenr].text );  *)
 								directions[dirnum, dirtypenr].before := TRUE;  
 							END;  
 							
@@ -2358,6 +2340,20 @@ INC
 							directions[dirnum, dirtypenr].before := FALSE;  
 						ELSIF (n.tagname = "<coda>"  ) THEN directions[dirnum, dirtypenr].dirtype := "c";
 							directions[dirnum, dirtypenr].before := FALSE;  
+                        ELSIF (n.tagname = "<rehearsal>"  ) THEN 
+                        directions[dirnum, dirtypenr].placement := "h";
+                        directions[dirnum, dirtypenr].dirtype := "w"; (* 14.10.2020  "rehearsal" *)
+							directions[dirnum, dirtypenr].before := TRUE;   
+							COPY (" \boxit{",rehtext); 
+							Strings.Append (rehtext,n.between);
+							b.loesch(directions[dirnum,dirtypenr].text) ;
+							Strings.Append(rehtext," } ")     ;  
+							
+							COPY(rehtext,directions[dirnum,dirtypenr].text);
+						
+								
+							           Out.Ln(); Out.String( "rehearsal : "); Out.String(rehtext);    
+							           Out.Ln();Out.String("text :"); Out.String  (  directions[dirnum,dirtypenr].text  ) ; 
 
 
 					ELSE 
@@ -2367,7 +2363,9 @@ INC
 					maxdirtype[dirnum] := b.Max( dirtypenr, maxdirtype[dirnum] );  
 					 (* Out.Ln(); Out.String("dirtypenr : ");				Out.Int(dirtypenr,5);*)
 					pmxDirections( dirnum, dirtypenr, res );  COPY( res, directions[dirnum, dirtypenr].pmxdirection );  
-					(*  OutDir(dirnum,dirtypenr);  *)
+					(*  OutDir(dirnum,dirtypenr);  *)Out.Ln(); 
+					
+		(*		 Out.Int(dirnum,5); Out.String("| in directionprop "); 	Out.String(res); Out.String(directions[dirnum, dirtypenr].pmxdirection); *)
 					
 				END;   (* 3 *)
 				(*		IF (n.tagname = stafftag) THEN Strings.StrToInt( n.between, directions[dirnum].staff ) END;  ??????? *)
@@ -2377,9 +2375,9 @@ INC
 		
 	END DirectionProp;  
 
-	PROCEDURE AttributesPropM( voice, measure: LONGINT;  VAR n: b.Tag );  
+	PROCEDURE AttributesPropM ( voice, measure: LONGINT;  VAR n: b.Tag );  
 	(*****************  voice = voice01 ********************)
-	VAR sign: CHAR;  line, number, part : LONGINT;  clef: CHAR;  
+	VAR sign: CHAR;  line, number, part : LONGINT;  clef: CHAR;  m : b.Tag; staff : LONGINT;
 		(* takes care of changes: 
 								- clefchange [part,staff] in the flow of notes
 								- meter change: beats and beattype [measure]
@@ -2388,28 +2386,46 @@ INC
 								links the changes to a note *)
 	BEGIN (* Out.Ln(); Out.String(" in AttirbutesPropM ");*)
 		IF (n.tagname = attributestag) & ~n.used THEN  (* 1 *)
-			part := n.part;
-			WHILE n.tagname # "</attributes>" DO  (* 2*)
-				
-		IF (n.tagname = cleftag) THEN 
-					ReadClef( n, sign, line, number );  b.clefPMX( sign, SHORT( line ), clef, clefspec[ps] );   
-					(*Out.Char( clef );  					Out.Char( clefspec[ps] ); *)
+			part := n.part;  staff := n.staff;  (* REparaturversuch 31.10.2020 *)
+			(* ps := linstaff( nostaves, part, staff ); *)
+WHILE n.tagname # "</attributes>" DO  (* 2*)
+		(*	Out.Ln(); Out.String(n.tagname);	*)
+		IF (n.tagname = cleftag) THEN       
+		(*     Out.Ln(); Out.String(cleftag);
+	    	Out.Ln(); Out.String("part,staff,ps, measure  :");Out.Int(part,5); Out.Int(staff,5); Out.Int(ps,5); Out.Int(measure,5); *)
+		
+		                                                                                                        (* neu Oktober 2020) find next note of same staff. *)
+					ReadClef( n, sign, line, number ); 
+					 b.clefPMX( sign, SHORT( line ), clef, clefspec[ps] );   
+					b.findnextnotestaff  ( n, m ,number); m.newclef := clef; 
+					 (* lastclef[ps] := clef; *)
+					(* notes[ps, voice, measure, n.lastnote].clefchanged := clef;  *)  
+
+					
+			(*		b.OutTag(m,TRUE);  *) (* INC (countclefchanges); Out.Ln();Out.Int(countclefchanges,5); *)
+					
+					END;
+		
+		(*			Out.Ln(); Out.String("AttPropM"); Out.Char("|"); Out.Char( clef ); 
+					Out.Char("|"); 				(*	Out.Char( clefspec[ps] );   *)
+					
+					Out.Ln();Out.String("n. lastnote"); Out.Int(n.lastnote,5);
+					
 					IF ( n.lastnote # 0 ) THEN
 							lastclef[ps] := clef;  notes[ps, voice, measure, n.lastnote].clefchanged := clef; 
+							
+							Out.Ln(); Out.String("AttributesProp: n.lastnote # 0 "); Out.Int(measure,5); Out.Char("|"); Out.Char(clef);
 					ELSE
-							measures[measure].clefchange[linstaff(nostaves,part,number)] := clef; (* Maerz 2018 *)
-					END;	
+					(* n.lastnote = 0 *)
+							measures[measure ].clefchange[linstaff(nostaves,part,number)] := clef; (* Maerz 2018 *)
+							
+							
+							Out.Ln(); Out.String("AttributesProp: n.lastnote  =  0 "); Out.Int(measure,5); Out.Char("|"); Out.Char(clef); 
+					END;	*)
 				(*	 Out.Ln();  
 					Out.String( "clefs *******" );  Out.Int( ps, 5 );  Out.Int( voice, 5 );  Out.Int( measure, 5 );  
 					Out.Int( n.lastnote, 5 );  Out.Char( clef );   *)
-	(*				IF voice < voicelimm[ps, measure] - 1 THEN 
-						 Out.Ln();  Out.String( " clefchange in upper voice !" );   INC( countclef );  copyclef[countclef].ps := ps;  
-						copyclef[countclef].measure := measure;  copyclef[countclef].clef := clef;  
-						copyclef[countclef].before := notes[ps, voice, measure, n.lastnote].to;  
-						copyclef[countclef].voice := voice;  
-						Out.Int(countclef,5); Out.Int(ps,5); Out.Int(measure,5); Out.Char(clef); Out.Int(voice,5);
-					END;  removed 2nd of May 2018 *)
-				END;  
+					 
 				(*	IF part = 1 THEN                          Korrektur 12. Januar 2016: Taktwechsel bei Takt 209 Vivaldi fehlt in der zweiten und driitten 
 					Stimme. 
 					*)
@@ -2461,11 +2477,9 @@ INC
 		chord: CHAR;  noteduration: LONGINT;  
 		durationsv: ARRAY 25 OF ARRAY 10 OF LONGINT;  
 	BEGIN 
-        	chord := "?";
-		isnote := FALSE;
 		n := q.first;   Out.Ln();  Out.String( " PROCEDURE Pickup : " );  
 		WHILE (n.next # NIL ) & (n.tagname # measuretag) DO n := n.next;  END;   (* first measure of first part found *)
-		 b.OutTag( n, TRUE );    COPY( n.endtag, endtag );  duration := 0;  
+	(*	 b.OutTag( n, TRUE );  *)   COPY( n.endtag, endtag );  duration := 0;  
 		WHILE (n.next # NIL ) & (n.tagname # endtag) DO  (* Loop over all elements of 1st measure / 1st instrument /1st staff *)
 			IF (n.tagname = notetag) THEN 
 				isnote := TRUE;  part := n.part;  staff := n.staff;  voice := n.voice;  chord := n.chord;  (* b.OutTag( n, TRUE );  *)
@@ -2486,10 +2500,10 @@ INC
 		
 		IF (duration = attributes[1].duration) THEN duration := 0;  
 		END;  
-		Out.Ln();  Out.String( "beats, beattype and divisions : " );  Out.Int( attributes[1].beats, 5 );  Out.Int( attributes[1].beattype, 5 );  
+		(* Out.Ln();  Out.String( "beats, beattype and divisions : " );  Out.Int( attributes[1].beats, 5 );  Out.Int( attributes[1].beattype, 5 );  
 		Out.Int( attributes[1].divisions, 5 );  
 
-		Out.Ln();  Out.String( "Pickup : " );  Out.Int( duration, 5 );  Out.Int( attributes[1].duration, 5 );  
+		Out.Ln();  Out.String( "Pickup : " );  Out.Int( duration, 5 );  Out.Int( attributes[1].duration, 5 );  *)
 	END Pickup;  
 
 
@@ -2586,9 +2600,8 @@ INC
 
 	PROCEDURE progress( q: b.FIFO );  
 	(* Calculates the horizontal position of each note in a measure and stores it in the tag.  *)
-	VAR n: b.Tag;  ps: LONGINT;
+	VAR n: b.Tag;  ps: LONGINT;    
 	BEGIN 
-		ps := 0;
 		n := q.first;  
 		
 		WHILE (n.next # NIL ) DO (* 1 *)
@@ -2597,7 +2610,7 @@ INC
 				part := n.part;  staff := n.staff;  measure := n.measure;  ps := StaffInd( nostaves, part, staff );  
 				voice := VOICE01( ps, n.voice, n.measure );  
 				
-				IF (n.chord # "c") & ( n.grace = 0 ) THEN  (* 4 *) (* war fruher "&" statt "OR" *)
+				IF (n.chord # "c") & ( n.grace = 0 ) THEN  (* 4 *) (* war frueher "&" statt "OR" *)
 				(* INC(measures[measure].dur,n.duration); Out.Int(n.duration,5); *)
 					INC( voicetime[ps, voice], n.duration );  n.voicetime := voicetime[ps, voice];  
 					measures[measure].voicetime[ps, voice] := n.voicetime;  n.from := lastto + 1 - n.backup;  
@@ -2625,20 +2638,6 @@ INC
 	
 	END progress;  
 
-(*	PROCEDURE CopyMeasure( from, to: LONGINT );  
-	VAR i: LONGINT;  
-	BEGIN 
-	   
-		measures[to].beattype := measures[from].beattype;  measures[to].beats := measures[from].beats;  
-		measures[to].fifth := measures[from].fifth;  i := 1;  
-		WHILE i <= maxpart DO 
-		measures[to].duration[i] := measures[from].duration[i];  
-		
-
-		(* measures[to].keys[i] := measures[from].keys[i]; *)
-		INC( i );  
-		END;  
-	END CopyMeasure;  *)
 
 	PROCEDURE linstaff( nostaves, part, staff: LONGINT ): LONGINT;  
 	(* calculates the linear index of the combination "part and staff" *)
@@ -2767,8 +2766,8 @@ INC
 
 			b.clefPMX( attributes[part].clefsign[staff], SHORT( attributes[part].clefline[staff] ), clef, clefspec[i] );  
 			lastclef[i] := clef;  Files.Write( W, clef );  Out.Char( attributes[part].clefsign[staff] );  
-			Out.Int( attributes[part].clefline[staff], 5 );  Out.Char( clef );  Out.Char( "|" );
-                        IF clefspec[i] # 0X THEN Out.Char( clefspec[i] ) END;  
+			Out.Int( attributes[part].clefline[staff], 5 );  Out.Char( clef );  Out.Char( "|" );  
+			IF clefspec[i] # 0X  THEN Out.Char( clefspec[i] ); END;  
 
 			DEC( i );  
 		END;  
@@ -2810,10 +2809,11 @@ INC
 		height: ARRAY 3 OF CHAR;  
 	BEGIN 
 		b.loesch( res );  dirtype := directions[idir, dirtypenr].dirtype;  
+		
 		CASE dirtype OF 
 		"w": 
 				IF (Strings.Length( directions[idir, dirtypenr].text ) > 0) THEN 
-					IF (directions[idir, dirtypenr].note = 0) THEN directions[i, dirtypenr].note := 1 END;  
+					IF (directions[idir, dirtypenr].note = 0) THEN directions[idir, dirtypenr].note := 1 END;  (* &&&&& *) 
 					IF directions[idir, dirtypenr].placement = "h" THEN COPY( "12", height );  
 					ELSIF directions[idir, dirtypenr].placement = "l" THEN COPY( "-6", height );  
 					END;  
@@ -2822,6 +2822,7 @@ INC
 					Strings.Append( res, "}\" );  
 				END;  
 		| "d": 
+			  
 				PMXdyn( directions[idir, dirtypenr].dyntype, res );  
 		| "h": 
 				PMXdyn( directions[idir, dirtypenr].wedgetype, res );  
@@ -2851,7 +2852,7 @@ INC
 		
 		
 	BEGIN 
-		note := 0; voice := 0;		
+		
 		attnum := 0;  dirnum := 0;  part := 0;  measure := 0;  
 		
 		(******************** Read XML-Information ****************************)
@@ -2956,8 +2957,17 @@ INC
 		END;  
 	
 	END AnalyzeXML2;  
-
+(* PROCEDURE ListMeasure*;
+		VAR i, measure : INTEGER;
+		BEGIN
+		Out.Ln(); Out.String("ListMeasure"); Out.Ln();
 		
+			i := 1; WHILE i < maxmeasure DO Out.Ln(); Out.Int(i,5); INC(i); measure := i; 
+		Out.Char(	measures[measure].clefchange[1]);
+			Out.Char(	measures[measure].clefchange[2]);
+			Out.Char(	measures[measure].clefchange[3]);
+			Out.Char(	measures[measure].clefchange[4]);END;
+		END ListMeasure; *)
 
 
 
@@ -2989,8 +2999,8 @@ BEGIN
 	pmxdur[6] := "6";  pmxdur[7] := "7"; (*128th note ? *)
 	
 	(* Initialization of voices count *)
-	i := 0;  j := 0;  ingrace2pmx := 0;  NEW( notes );  NEW( directions );  NEW( measures );  NEW( voicemeasure );  
-	NEW( minvoice );  NEW( maxvoice );  
+	i := 0;  j := 0;  ingrace2pmx := 0;  NEW( directions );  NEW( measures );  NEW( voicemeasure );  
+	NEW( minvoice );  NEW( maxvoice );   NEW( notes ) ; 
 
 	itags := 0;  lfdnr := 1;   (* outarray(minvoice); *)
 	(* Initialize tie numbering *)
@@ -3006,24 +3016,32 @@ BEGIN
 	WHILE part < 24 DO 
 		measure := 1;  
 		WHILE measure < measurelimit DO 
-			maxnote[part, 1, measure] := 0;  maxnote[part, 2, measure] := 0;  minnote0[part, 1, measure] := 100;  
-			minnote0[part, 2, measure] := 100;  minnote1[part, 1, measure] := 100;  minnote1[part, 2, measure] := 100;  
-			minnote[part, 1, measure] := 100;  minnote[part, 2, measure] := 100;  
+			maxnote[part, 1, measure] := 0; 
+			maxnote[part, 2, measure] := 0; 
+			minnote0[part, 1, measure] := 100;  
+			minnote0[part, 2, measure] := 100;  
+			minnote1[part, 1, measure] := 100;  
+			minnote1[part, 2, measure] := 100;  
+			minnote[part, 1, measure] := 100;  
+			minnote[part, 2, measure] := 100;  
 
-			maxnote0[part, 2, measure] := 0;  maxnote0[part, 1, measure] := 0;  maxnote1[part, 2, measure] := 0;  
-			maxnote1[part, 1, measure] := 0;  minvoice[part, measure] := 10;  maxvoice[part, measure] := 0;  
+			maxnote0[part, 2, measure] := 0;  
+			maxnote0[part, 1, measure] := 0;  
+			maxnote1[part, 2, measure] := 0;  
+			maxnote1[part, 1, measure] := 0;  
+			minvoice[part, measure] := 10;  
+			maxvoice[part, measure] := 0;  
 			INC( measure );  
 		END;  
 		INC( part );  
-	
 	END;  
-	unix := TRUE;   (* CRLF end of line; for LF end of line set unix := TRUE. *)
+	unix := FALSE;   (* CRLF end of line; for LF end of line set unix := TRUE. *)
 	b.unix := unix; (* inform MODULE "b" about end of line character. *)
 	(********************* Read CommandLine ***************)
-	(* commandO;   call externally for Oberon-Version   ***********)
+	(* commandO; never activate   call externally for Oberon-Version   ***********)
 	(*****************************************************)
-	 (*  commandX;    *)   (* activate for Windows-Exe Version *******)
+	(*  commandX;    *)  (* activate for Windows-Exe Version *******)
 	(**************** ******************************)
-	 commandU;     (* activate for Linux-Binary Version *************)
+	(* CommandU;   *)  (* activate for Linux-Binary Version *************)
 	
 END Testbed.

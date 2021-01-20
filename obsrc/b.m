@@ -1,9 +1,7 @@
 MODULE b;
-
-IMPORT Files := MyFiles, Strings := Strings1, Fifo,  Out; 
-
-TYPE LONGINT = INTEGER;
+(* Achtung "PrintRange" eingebaut, zusaetzliche Importe *)
 	
+IMPORT Files, Strings, Fifo,Out, Oberon ; (*Out := WCout; *)
 CONST CR= 0DX; NL = 0AX; BLANK = 20X; DBLQUOTE = 22X; TAB=09X;
 TYPE
 	Tag* = POINTER TO TagDesc;   (* List structure for data acquisition *)
@@ -23,6 +21,7 @@ TYPE
 				duration*, backup*, voicetime*, from*, to*: INTEGER;  
 				probj*: CHAR;   (* when "n" the complete object has to be removed *)
 				grace*: INTEGER;   (* counts consecutive grace notes *)
+			newclef* : CHAR;  (* only for notes or rests. the new clef is applied to this note. *)
 			END;  
 	FIFO* = RECORD 
 				first*, last*: Tag;  
@@ -36,7 +35,7 @@ TYPE
 			END;  
 
 			
-VAR q* : FIFO; voutput* : BOOLEAN; nostaves* : LONGINT; unix* : BOOLEAN;
+VAR q* : FIFO; maxtag : LONGINT; nfirst : Node; voutput* : BOOLEAN; nostaves* : LONGINT; unix* : BOOLEAN;
 sout : ARRAY 64 OF CHAR; (* target file path and directory *)
 tieunusdnum*: ARRAY 27 OF ARRAY 3 OF SET;
 tieq: ARRAY 27 OF ARRAY 2 OF Fifo.FIFO; 
@@ -44,14 +43,22 @@ tieq: ARRAY 27 OF ARRAY 2 OF Fifo.FIFO;
     akeys*, mkeys* : ARRAY 27 OF INTEGER;
   nstr : ARRAY 8 OF LONGINT;   (* global for number of verses in a liedtext.*)
 	text: ARRAY 8 OF ARRAY 6  OF ARRAY 1024 OF CHAR;   (* texts for at most 6 verses and 8 voices choir; length limited to  1023 Chars *)
+(*			PROCEDURE PrintRange*;
+	VAR S : Texts.Scanner; von, bis, i : LONGINT; n : Tag;
+	BEGIN
+	Texts.OpenScanner (S, Oberon.Par.text, Oberon.Par.pos);
+	Texts.Scan(S); von := S.i; Texts.Scan(S); bis  := S.i;
+		n:= q.first; 
+		WHILE (n.next # NIL) & (i < von ) DO n := n.next; INC(i); END;
+	WHILE (n.next # NIL) & ( i < bis ) DO OutTag(n,TRUE); n := n.next; INC(i); END;
+END PrintRange; *)
 
 PROCEDURE slur2PMX* ( n: Tag;  VAR pmxslur: ARRAY OF CHAR ; outputset : SET);  
 	(* Translates a beginning or ending slur from XML to PMX. *)
 	
 	VAR c, cs : CHAR;  
-		type, number, placement: ARRAY 32 OF CHAR;  inumber : LONGINT;
+		type, number, placement: ARRAY 32 OF CHAR;  inumber : LONGINT; res : ARRAY 4 OF CHAR;
 	BEGIN 
-                c := "?";
 		loesch( pmxslur );  FindAtt( n, "type", type );  FindAtt( n, "number", number );  
 		IF ( number # "" ) THEN
 				Strings.StrToInt(number, inumber);
@@ -59,7 +66,7 @@ PROCEDURE slur2PMX* ( n: Tag;  VAR pmxslur: ARRAY OF CHAR ; outputset : SET);
 				ELSE cs := "A"; 
 		END;
 		FindAtt( n, "placement", placement );  
-IF (type # "continue") THEN (* gibt es das Uberhaupt? *)
+		IF (type # "continue") THEN (* gibt es das ueberhapt? *)
 
 			COPY( BLANK, pmxslur );  
 			IF (type = "start") THEN c := "(";  
@@ -88,7 +95,7 @@ IF (type # "continue") THEN (* gibt es das Uberhaupt? *)
 	    orientation = "d" => note with stem down yields tie with orientation "u".
 	 orientation = "u" => note with stem up yields tie with orientation "l". *)
 	VAR c: CHAR;  
-		number: ARRAY 32 OF CHAR;  orient : ARRAY 32 OF CHAR; orientation : CHAR;
+		number: ARRAY 4 OF CHAR;  orient : ARRAY 10 OF CHAR; orientation : CHAR;
 		nt: Fifo.Node;  
 	
 	BEGIN 
@@ -125,7 +132,7 @@ IF (type # "continue") THEN (* gibt es das Uberhaupt? *)
 	
 PROCEDURE lyric*( ps: LONGINT;  VAR n: Tag );  
 	VAR endtag: ARRAY 32 OF CHAR;  
-		number, syllabic: ARRAY 32 OF CHAR;  istr : LONGINT;
+		number, syllabic: ARRAY 10 OF CHAR;  istr : LONGINT;
 	BEGIN 
 	IF (n.tagname = "<lyric>") (* & (number = "1") *) THEN 
 
@@ -197,7 +204,7 @@ Out.Ln();	Out.String("Storage for verses : "); Out.String(sout);
 	(* Command to list the different tags after calling the comman "Testbed.AalyzeXML" *)
 	VAR n: Tag;  first, st: Node;  
 	BEGIN 
-		first := NIL;
+		
 		n := q.first;  
 		WHILE n # NIL DO NEW( st );  COPY( n.tagname, st.key );  InsertRanked( first, st );  n := n.next;  END;  
 		st := first;  Out.Ln(); Out.String("===============================================");
@@ -298,6 +305,34 @@ Out.Ln();	Out.String("Storage for verses : "); Out.String(sout);
 		
 		
 	END findnextnote;  
+		PROCEDURE findnextnotestaff*( n: Tag;  VAR m: Tag;  number : LONGINT);  
+	(* finds the next note "m" after "n", *)
+	
+	BEGIN 
+		m := n; (* Korrektur 22.06.2019 *)
+		REPEAT m := m.next; 
+			UNTIL (m.next = NIL ) OR ( (m.tagname = "<note>") & ( m.staff = number ) ) ;  
+		
+		(*	Out.Ln();  Out.String( "findnextnote : " );  Out.Int(m.nr,5); Out.String( m.tagname );  *)
+		
+		
+	END findnextnotestaff;
+	
+	PROCEDURE compareTag*;
+	VAR m,n : Tag;
+	VAR i : LONGINT;
+	BEGIN
+	n := q.first;
+	WHILE  i < 1000 DO
+	OutTag(n,TRUE); 
+	n := n.next;
+	INC(i);
+	END;
+
+	  
+	    
+	END compareTag;  
+
 
 PROCEDURE OutTag*( n: Tag;  ln: BOOLEAN );  
 	(* Writes the properties of one tag into System.Log. *)
@@ -312,31 +347,27 @@ PROCEDURE OutTag*( n: Tag;  ln: BOOLEAN );
 			Out.Int( n.voice , 5 );   (* 4 *) 
 		(*	Out.Char("|");	Out.Int( n.voice12 , 5 );   (* 4 *) *)
 
-			Out.Int( n.measure, 5 );   (* 6 *)
-			Out.Int( n.note, 5 );   (* 7 *)
-			Out.Int( n.grace, 5 );  
-			Out.Int( n.from, 5 );  Out.Int( n.to, 5 );   (* 8 *)
-			IF n.chord # 0X THEN Out.Char( n.chord );  ELSE Out.Char("-") END; 
-			IF n.arpeggio THEN Out.String(" ? "); END; 
-			Out.Int( n.dirnum, 5 );   (* 9 *)
-			Out.Int( n.lastnote, 5 );   (* 10 *)
-			Out.Int( n.nextnote, 5 );   (* 10 *)
-			Out.Int( n.nextvoice, 5 );   (* 10 *)
-			Out.Int( n.attnum, 5 );   (* 11 *)
-	(*		Out.Int( n.arpeggio, 5 ); *)  Out.Char( n.probj );  
+			Out.Int( n.measure, 5 );   (* 5 *)
+			Out.Int( n.note, 5 );   (* 6 *)
+			Out.Int( n.grace, 5 );  (* 7 *)
+			Out.Int( n.from, 5 );  Out.Int( n.to, 5 );   (* 8, 9  *)
+			IF n.chord # 0X THEN Out.Char( n.chord );  ELSE Out.Char("-") END;  (* 10 *)
+	(*		IF n.arpeggio THEN Out.String(" ? "); END;  (* 11 *) *)
+			Out.Int( n.dirnum, 5 );   (* 11  *)
+			Out.Int( n.lastnote, 5 );   (* 12 *)
+			Out.Int( n.nextnote, 5 );   (* 13 *)
+			Out.Int( n.nextvoice, 5 );   (* 14 *)
+			Out.Int( n.attnum, 5 );   (* 15 *)
+			Out.Char(n.newclef); (* 17.10.2020 new implementation of clefs *)
+	(*		Out.Int( n.arpeggio, 5 ); *)  
+	Out.Char( n.probj );  (* 17 *)
 (*			IF n.cue THEN Out.String("cue"); END; *)
 			
 	(*	Out.String("backup");	Out.Int(n.backup,5); *)
 			(*		Out.String(" backup,duration,voicetime, from, to : ");Out.Int( n.backup, 5 ); 
 				Out.Char("|"); Out.Int(n.duration,5);	Out.Char("|");Out.Int(n.voicetime,5);	
-								Out.Char("|");Out.Int(n.from,5);Out.Char("|");Out.Int(n.to,5);  *)
-			
-			
-			
+								Out.Char("|");Out.Int(n.from,5);Out.Char("|");Out.Int(n.to,5);  *)			
 			Out.String( n.tagname );   (* Out.String( n.endtag );  *)
-			
-			
-			
 			i := 0;  
 			WHILE (i < n.novalues) DO 
 				Out.String( n.names[i] );  Out.Char( "=" );  Out.String( n.values[i] );  Out.Char( "|" );  INC( i )
@@ -407,14 +438,14 @@ Out.Int(itags,5); Out.String(tag); Out.Int(part,5); Out.Int(measure,5); Out.Int(
 				ELSE  (* Out.Ln();  Out.String( " FindAtt : name not found " );  Out.String( name );  OutTag( n );  *)
 		END;  
 	END FindAtt;  
-	PROCEDURE FindNextNote* (VAR n : Tag); (*  for removing cue notes ; finds next note after "n" or "n" when it is a note *)
-
+(*	PROCEDURE FindNextNote* (VAR n : Tag); (*  for removing cue notes ; finds next note after "n" or "n" when it is a note *)
+	VAR
 	BEGIN
 	IF n.tagname # "<note>" THEN
-		REPEAT n:= n.next UNTIL ( (n.tagname = "<note>" ) OR ( n.next = NIL) ) ;
+		REPEAT n:= n.next UNTIL ( (n.tagname = "<note>" ) & ( n.grace = 0 ) )  OR ( n.next = NIL ) ; (* &&&&& *)
   ELSE 
   END;
-  END FindNextNote;
+  END FindNextNote; *)
 	
 PROCEDURE PosInStaff*(pitchnote : CHAR;pitchoctave : INTEGER; clef : CHAR) : LONGINT;
 (* calculates the position of the note "pitchnote/pitchoctave" in the staff according to clef. *)
@@ -456,7 +487,7 @@ RETURN imin;
 END 
 MinDist;
 PROCEDURE testMinDist*;
-VAR pos : ARRAY 5 OF INTEGER;
+VAR pos : ARRAY 5 OF INTEGER; x : INTEGER;
 	
 BEGIN
 pos[0] := 57;
@@ -497,6 +528,22 @@ PROCEDURE pmxTremolo* (pitchnote : CHAR; pitchoctave : INTEGER; stem, clef : CHA
 	END pmxTremolo;
 	
 	
+	PROCEDURE ReadIntF(VAR W : Files.Rider; digits : LONGINT) : LONGINT;
+(* Formatted read of LONGINT from file *)
+VAR i : LONGINT; ints : ARRAY 16 OF CHAR;
+BEGIN
+loesch(ints);
+i := 0; WHILE i < digits DO Files.Read(W,ints[i]); INC(i) END;
+ints[i] := 0X; Strings.StrToInt(ints,i); RETURN i;
+END ReadIntF;
+PROCEDURE ReadStringF(VAR W : Files.Rider; digits : LONGINT; VAR s : ARRAY OF CHAR);
+(* Formatted read of STRING with length "digits"  from file *)
+VAR i : LONGINT; 
+BEGIN
+loesch(s);
+i := 0; WHILE i < digits DO Files.Read(W,s[i]); INC(i) END;
+s[i] := 0X;
+END ReadStringF;
 PROCEDURE ReadStringUntil*(VAR W : Files.Rider; split : CHAR; VAR s : ARRAY OF CHAR);
 (* Formatted read of STRING until "split" Character  from file *)
 VAR i : LONGINT; c : CHAR;
@@ -514,7 +561,7 @@ END ReadStringUntil;
 
 	PROCEDURE APPzca* (VAR s,t : ARRAY OF CHAR);
 	(* Appends a 2nd \zcharnote-element to the first one. *)
-	VAR i,j : LONGINT;
+	VAR i,j : LONGINT; 
 	BEGIN
 	i := Strings.Length(s);
 (*	Out.Ln(); Out.String("vorher : ");Out.String(s); Out.Ln(); Out.String(t); *)
@@ -565,7 +612,7 @@ END FindToken;
 	END strbetween;  
 	PROCEDURE Copywo*( VAR fin, fout: Files.File );  
 	(* Copies a File and eliminates multiple BLANKs. *)
-	VAR ch: CHAR;  rin, rout: Files.Rider;  column: LONGINT;  
+	VAR ch, first: CHAR;  rin, rout: Files.Rider;  column, line: LONGINT;  
 	BEGIN 
 		Files.Set( rin, fin, 0 );  Files.Set( rout, fout, 0 );  column := 0;  Files.Read( rin, ch );  
 		WHILE ~rin.eof DO 
@@ -620,7 +667,7 @@ PROCEDURE clefPMX*( clefsign: CHAR;  clefline: INTEGER; VAR c, otherclef : CHAR)
 				otherclef := "p"; Out.Ln(); Out.Char("p");
 		
 		ELSE Out.Ln();  Out.String( "unknown Clef symbol " );  
-		END;  Out.Char(c);
+		END;  (* Out.Char(c); *)
 	END clefPMX; 
 PROCEDURE NewBeat*( beat, beattype: INTEGER;  VAR res: ARRAY OF CHAR; blind : BOOLEAN );  
 	VAR sbeat, sbeattype: ARRAY 5 OF CHAR;  
@@ -709,11 +756,11 @@ PROCEDURE ExtractDigits*( sin: ARRAY OF CHAR;  VAR sout: ARRAY OF CHAR );
 		i := 0;  
 		IF ~Strings.IsDigit( sin[i] ) THEN 
 			i := 1;  
-			WHILE ~Strings.IsDigit( sin[i] ) DO INC( i ) END 
+			WHILE ( i <  LEN(sin) ) &  ~Strings.IsDigit( sin[i] )  DO INC( i ) END 
 		END;  
 		(* sin[i] is a digit *)
 		j := 0;  
-		WHILE Strings.IsDigit( sin[i] ) DO sout[j] := sin[i];  INC( i );  INC( j ) END;  
+		WHILE ( i < LEN(sin) ) & Strings.IsDigit( sin[i] ) DO sout[j] := sin[i];  INC( i );  INC( j ) END;  
 		sout[j] := 0X;  
 	END ExtractDigits;  
 
@@ -820,24 +867,50 @@ PROCEDURE FilterTeX*( in: ARRAY OF CHAR;  VAR out: ARRAY OF CHAR );
 	Strings.IntToStr(in,inc); indigits := Strings.Length(inc); i := indigits;
 	WHILE i < outdigits DO out[i-indigits] := "0"; INC(i); END;
 	Strings.Append(out,inc);
-	END fill0;
+	END fill0; 
+	PROCEDURE ReadUntilTx*( VAR R: Files.Rider;  stop: CHAR; VAR s: ARRAY OF CHAR );
+   (* Reads from a given file position until a stop character and stores in string, Mike Spivey. *)
+   VAR i: LONGINT;  c: CHAR;
+   BEGIN
+       Files.Read( R, c );  i := 0;
+       WHILE ~R.eof & (c # stop) DO
+           IF ~WhiteSpace( c ) THEN s[i] := c; INC(i); END;
+           Files.Read( R, c )
+       END;
+       s[i] := c; s[i+1] := 0X
+   END ReadUntilTx; 
+(*old version until 12.08.2020 
 	PROCEDURE ReadUntilTx*( VAR R: Files.Rider;  stop: CHAR;  VAR s: ARRAY OF CHAR );  
 	(* Reads from a given file position until a stop character and stores in string. *)
 	VAR i: LONGINT;  c: CHAR;  
 	BEGIN 
 		Files.Read( R, c );  i := 0;
-		WHILE ~R.eof & (c # stop) DO
-                  IF ~WhiteSpace(c) THEN s[i] := c; INC(i); END; 
-                  Files.Read(R,c)
-	        END;
-		s[i] := c; s[i+1] := 0X
-	END ReadUntilTx;  
+		REPEAT IF ~WhiteSpace(c) THEN s[i] := c; INC(i); END; Files.Read(R,c);  		
+	
+		UNTIL R.eof OR ( c = stop );
+		
+		s[i] := c;	s[i+1] := 0X;   
+		
+	END ReadUntilTx;  *)
 	PROCEDURE WhiteSpace ( c : CHAR) : BOOLEAN;
 	VAR ws : BOOLEAN;
 	BEGIN
 	ws := (c = BLANK) OR ( c = TAB ) OR ( c = CR ) OR ( c = NL );
 	RETURN ws;
 	END WhiteSpace;
+	PROCEDURE testws*;
+	VAR f : Files.File; R : Files.Rider; c : CHAR; rec : ARRAY 256 OF CHAR; i : LONGINT;
+	BEGIN
+	f := Files.Old ("d:/musix/xml/vivaldi.xml");
+	Files.Set(R,f,0);
+	WHILE ~R.eof DO
+	Files.Read (R,c);
+	IF c # "<" THEN REPEAT Files.Read(R,c) UNTIL R.eof OR (c = "<" ); END;
+	i := 0; rec[i] := c; REPEAT Files.Read(R,c); INC(i); rec[i] := c; UNTIL R.eof OR (c = ">" ); 
+	rec[i+1] := 0X;
+	Out.Ln();Out.String(rec);
+	END;
+	END testws;
 	PROCEDURE ReadRecn1*( VAR R: Files.Rider;  VAR rec: ARRAY OF CHAR;  VAR length: LONGINT );  
 	(* Reads one record from the MusicXML file. removes leading BLANKs and TABs and CR, NL *)
 	VAR i: LONGINT;  c: CHAR;  
@@ -919,7 +992,7 @@ PROCEDURE FilterTeX*( in: ARRAY OF CHAR;  VAR out: ARRAY OF CHAR );
 	END FindName;  
 
 	PROCEDURE FindValue*( s: ARRAY OF CHAR;  VAR pos: LONGINT;  VAR value: ARRAY OF CHAR;  VAR eor: BOOLEAN );  
-
+	VAR 
 	BEGIN 
 		FindChar( s, pos, 22X, eor );   (* Out.Ln(); Out.String("FindValue: pos : "); Out.Int(pos,5); *) INC( pos );  
 		IF ~eor THEN ReadUntil( s, pos, 22X, value, eor );  END;  
@@ -1039,6 +1112,26 @@ END; IF (keytotal = "K") THEN keytotal[0] := 0X END;
 						Strings.Append( keystr, dummy ); 
 	
 	END Makekeystr; 
+ 	PROCEDURE metron2PMX* ( beatunit : ARRAY OF CHAR; perminute : ARRAY OF CHAR;
+	                                            VAR sout :ARRAY OF CHAR);
+	    (*  Generates the Metronome data for PMX. *)
+	  BEGIN
+	loesch (sout);
 
-  BEGIN
-  END b.
+(*	COPY ("\zcharnote{12}{\metron", sout) ; *)
+	COPY ("\metron", sout) ; 
+
+	(* Out.Ln(); Out.String(sout); *)
+	  IF beatunit = "half" THEN Strings.Append (sout,"{\hu}{") 
+	  		ELSIF beatunit = "quarter" THEN Strings.Append(sout,"{\qu}{")
+	  		            ELSIF beatunit = "eighth"   THEN Strings.Append(sout,"{\cu}{");
+	  		            ELSE
+	  		            Out.Ln(); 
+	  		            Out.String("metron2PMX : beatunit ");
+	  		            Out.String(beatunit); Out.String("unknown") 
+	  		            END;
+	  		      Strings.Append(sout,perminute);   Strings.AppendCh (sout,"}");                                                     
+	           ;                                                                          
+	                                                                                             
+  END metron2PMX;
+END b.testMinDist

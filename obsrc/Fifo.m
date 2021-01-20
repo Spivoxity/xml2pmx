@@ -1,9 +1,8 @@
 MODULE Fifo;
-IMPORT Out; 
-
-TYPE LONGINT = INTEGER;
-
-TYPE
+IMPORT Out; (*  := WCout; *)
+VAR
+TYPE 
+	LONGINT = INTEGER;
   Node* = POINTER TO NodeDesc;
   NodeDesc = RECORD
   	key* : LONGINT;
@@ -67,4 +66,5 @@ used := {0,2,3,4};Out.Ln(); Out.String("2,3,4"); Out.Int(smallfree(used),5);
 
 
 END testfifo;
-END Fifo.
+END Fifo.testfifo
+System.Free Fifo

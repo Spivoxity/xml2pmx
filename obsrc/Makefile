@@ -8,7 +8,12 @@ OBCLIB = $(OBCDIR)/lib/obc
 
 OBJS = MyFiles.k Strings1.k Fifo.k b.k Complete.k Testbed.k
 
-all: ../image.c
+all: xml2pmx
+
+update: ../image.c
+
+xml2pmx: $(OBJS)
+	$(OBC) $^ -o $@
 
 ../image.c: $(OBJS) force
 	$(OBLINK) -g -pl -L $(OBCLIB) $(OBJS) -C -p -o $@ >../primtab0.c
