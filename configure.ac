@@ -16,8 +16,6 @@ AC_C_INLINE
 AC_C_UNUSED
 AC_C_USED
 AC_C_NORETURN
-AC_FIND_PAGESIZE
-AC_CHECK_FUNCS(mmap)
 
 # Indexed jumps allow the interpreter to run faster, but it works
 # without them.
@@ -32,14 +30,6 @@ fi
 
 # SEGMEM allows malloc to be used for all dynamic storage allocation
 AC_DEFINE(SEGMEM, 1, [Define to simulate segmented memory])
-
-# Filter used to compare output of regression tests: special for Windows
-FIXUP=cat
-case $host in
-  *-*-mingw*|*-*-cygwin)
-    FIXUP=d2u;;
-esac
-AC_SUBST(FIXUP)
 
 AC_DEFINE(PRELOAD, 1, [Define to use preloaded image])
 AC_DEFINE(MAGIC, "OBCX", [Magic number for executables])

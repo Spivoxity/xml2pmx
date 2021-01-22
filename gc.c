@@ -299,10 +299,11 @@ static int nsegs = 1; /* Segment 0 used for NULL */
 /* map_segment -- allocate segment registers */
 word map_segment(void *p, unsigned len) {
      word base = nsegs * SEGMENT;
+     char *q = p;
 
      while (nsegs * SEGMENT < base + len) {
-          segmap[nsegs++] = p;
-          p += SEGMENT;
+          segmap[nsegs++] = q;
+          q += SEGMENT;
      }
                                            
      return base;
@@ -359,7 +360,7 @@ typedef struct _header *hdrptr;
 #define header_alloc() scratch_alloc(sizeof(header))
 #endif
 
-#define voidptr(a) ptrcast(void, a)
+#define charptr(a) ptrcast(char, a)
 
 typedef struct _header {
      word h_memory;		/* The block itself */
@@ -441,6 +442,9 @@ static hdrptr new_list(void) {
    that index, and the offset (12 bits) within the page.  In general,
    we arrange that a page index occupies one page itself, and
    calculate the size of the root table to cover the address space. */
+
+#define PAGESIZE 4096
+#define LOG_PAGESIZE 12
 
 #define BOT_BITS (LOG_PAGESIZE - 2)
 #define BOT_SIZE (1 << BOT_BITS)
@@ -525,8 +529,8 @@ static void make_free(hdrptr h) {
 #ifdef SEGMEM
 /* contiguous -- test if blocks are physically contiguous */
 #define contiguous(h1, h2) \
-     voidptr(hdr(h1)->h_memory) + hdr(h1)->h_size \
-          == voidptr(hdr(h2)->h_memory)
+     charptr(hdr(h1)->h_memory) + hdr(h1)->h_size \
+          == charptr(hdr(h2)->h_memory)
 #endif
 
 
@@ -558,7 +562,7 @@ static hdrptr free_block(hdrptr h, mybool mapped) {
      }
 #endif
 
-     if (mapped) memset(voidptr(hdr(h)->h_memory), 0, hdr(h)->h_size);
+     if (mapped) memset(charptr(hdr(h)->h_memory), 0, hdr(h)->h_size);
 
      if (prev != 0 && hdr(prev)->h_objsize == 0
 #ifdef SEGMEM
@@ -895,7 +899,7 @@ static void redirect(word *p) {
 	       /* Evacuate object at r */
 	       if (free_count[index] == 0) add_block(index);
 	       s = free_ptr[index];
-	       memcpy(voidptr(s), voidptr(r), pool_size(index));
+	       memcpy(charptr(s), charptr(r), pool_size(index));
 	       free_ptr[index] += pool_size(index);
 	       free_count[index]--;
 	       get_word(r, 0) = BROKEN_HEART;
@@ -1103,7 +1107,7 @@ static void traverse_stack(value *xsp) {
 /* migrate -- redirect within the heap, recursively copying to new space */
 static void migrate(void) {
      hdrptr thumb[N_SIZES], big_thumb = block_pool[n_sizes];
-     word finger[N_SIZES];
+     word finger[N_SIZES], p;
      mybool changed;
      int i;
 
@@ -1141,7 +1145,7 @@ static void migrate(void) {
 		    }
 
 		    changed = TRUE;
-		    word p = finger[i];
+		    p = finger[i];
 		    if (desc(p) != NULL)
 			 redir_map(desc(p)[DESC_MAP], p + BYTES_PER_WORD, 0);
 		    finger[i] = p + pool_size(i);
@@ -1151,7 +1155,7 @@ static void migrate(void) {
 	  while (hdr(big_thumb)->h_next != block_pool[n_sizes]) {
 	       changed = TRUE;
 	       big_thumb = hdr(big_thumb)->h_next;
-	       word p = hdr(big_thumb)->h_memory;
+	       p = hdr(big_thumb)->h_memory;
 	       if (desc(p) != NULL)
 		    redir_map(desc(p)[DESC_MAP], p+BYTES_PER_WORD, 0);
 	  }

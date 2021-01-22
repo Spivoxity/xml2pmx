@@ -71,9 +71,8 @@ union value {
 extern void *segmap[];
 EXTERN word stack_vbase, data_vbase;
 
-static inline void *physmap(word a) {
-     return segmap[a >> SEGBITS] + (a & SEGMASK);
-}
+#define physmap(a) \
+     ((void *) ((char *) segmap[a >> SEGBITS] + (a & SEGMASK)))
 
 #else
 
