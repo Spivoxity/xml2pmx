@@ -58,8 +58,7 @@ file, if necessary, must be done with the same release -- bytecode is
 not portable between releases because the opcodes change.
 Alternatively, update the source files here from a later release.
 
-Procedure for installing new XML2PMX source from upstream
-=========================================================
+###Procedure for installing new XML2PMX source from upstream
 
 1. Save the provided source in directory obcsrc
 and rename files `BWO016.Mod --> b.m` etc.
@@ -79,7 +78,7 @@ sed -f umlaut.sed -i *.m
 * `patch1` to make changes needed to compile with OBC.
 * `patch2` to fix compiler warnings -- all concern unused variables
 and procedures, and local variables not explicitly initialised.
-* `patch3` to eliminate debugging output.
+* `patch3` to eliminate debugging output (optional).
 
 5. In the `obcsrc` directory, use "make update" to regenerate
 `image.c` and `primtab0.c`.
