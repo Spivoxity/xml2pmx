@@ -58,7 +58,8 @@ file, if necessary, must be done with the same release -- bytecode is
 not portable between releases because the opcodes change.
 Alternatively, update the source files here from a later release.
 
-###Procedure for installing new XML2PMX source from upstream
+Procedure for installing new XML2PMX source from upstream
+---------------------------------------------------------
 
 1. Save the provided source in directory obcsrc
 and rename files `BWO016.Mod --> b.m` etc.
