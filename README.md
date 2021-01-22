@@ -58,4 +58,34 @@ file, if necessary, must be done with the same release -- bytecode is
 not portable between releases because the opcodes change.
 Alternatively, update the source files here from a later release.
 
+Procedure for installing new XML2PMX source from upstream
+=========================================================
+
+1. Save the provided source in directory obcsrc
+and rename files `BWO016.Mod --> b.m` etc.
+
+2. Manually convert line endings and nuke the testing stuff at the
+bottom of `Testbed.m`.
+
+3. Detect non-ascii characters with
+````
+env LANG=C grep -P '[^\x00-\x7F]' *.m
+````
+and fix them with
+````
+sed -f umlaut.sed -i *.m
+````
+4. Apply various patches:
+* `patch1` to make changes needed to compile with OBC.
+* `patch2` to fix compiler warnings -- all concern unused variables
+and procedures, and local variables not explicitly initialised.
+* `patch3` to eliminate debugging output.
+
+5. In the `obcsrc` directory, use "make update" to regenerate
+`image.c` and `primtab0.c`.
+
+6. In the root directory, use "make" to compile an executable `xml2pmx`.
+
+7. In the root directory, use "make check" to run regression tests.
+
 -- JMS, 22/1/21
