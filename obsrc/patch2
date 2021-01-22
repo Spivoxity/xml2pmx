@@ -1,0 +1,312 @@
+# HG changeset patch
+# Parent  8da6612144e162af02de8b98fa81bbf94bb29eaf
+
+diff --git a/obsrc/Complete.m b/obsrc/Complete.m
+--- a/obsrc/Complete.m
++++ b/obsrc/Complete.m
+@@ -45,7 +45,7 @@
+ 
+ 
+  PROCEDURE CalcForward* (note,div : INTEGER; VAR res : ARRAY OF CHAR);
+-	VAR i,index, rest : INTEGER; 	
++	VAR i : INTEGER; 	
+ 	BEGIN	
+ 	i := 0; WHILE i < 8 DO durvec[i]:= 0 ; INC(i) END; (* erase durvec *)
+ 
+@@ -87,7 +87,7 @@
+ 	
+ 	PROCEDURE dur2beat* (duration,divisions : INTEGER; VAR beat, beattype : INTEGER);
+ 	(* calculates beat and beattype from duration of a measure *)	
+-	VAR res : ARRAY 32 OF CHAR; i : INTEGER;
++	VAR i : INTEGER;
+ 	BEGIN
+ 		i := 0; WHILE i < 8 DO durvec[i]:= 0 ; INC(i) END; (* erase durvec *)
+ 
+@@ -112,17 +112,6 @@
+ 	dur2beat(36,48, beat, beattype);
+ 	END testdur2beat;
+ 	
+-	PROCEDURE CalcDur (durvec : ARRAY OF INTEGER; VAR res : ARRAY OF CHAR);
+-	(* durvec is a vector of 0s and 1s, so that res := sum (pmxdur[i] * durvec[i]; i := 0 to 6 )  
+-	routine is made for detecting dots and double dots *)
+-	VAR i : INTEGER;  pmxdur : ARRAY 7 OF CHAR; 
+-	BEGIN
+-
+-	i := 0; WHILE durvec[i] = 0 DO INC(i) END; res[0] := pmxdur[i]; 
+-	IF (i < 6) & (durvec[i+1] = 1) THEN Strings.AppendCh(res,"d"); 
+-			IF ( i < 5 ) & (durvec[i+2] = 1) THEN Strings.AppendCh(res,"d"); END
+-	END; Strings.AppendCh(res,0X);
+-	END CalcDur;
+ 	PROCEDURE Durit(note,div : INTEGER);
+ 	VAR index, rest, i : INTEGER;
+ 	BEGIN
+@@ -223,7 +212,7 @@
+ END testDur2PMX;
+ PROCEDURE Complete* (from, to, divisions, measureduration : INTEGER; VAR before, after : ARRAY  OF CHAR); 
+ 		(* solves the problem of dangling notes created with the backup or forward statement of MusicXML *)
+-	VAR beforedur, afterdur, index, rest, i : INTEGER;
++	VAR beforedur, afterdur, i : INTEGER;
+ 	BEGIN
+ 	beforedur :=  from - 1;
+ 	afterdur := measureduration - to;
+diff --git a/obsrc/Testbed.m b/obsrc/Testbed.m
+--- a/obsrc/Testbed.m
++++ b/obsrc/Testbed.m
+@@ -18,7 +18,7 @@
+     (* corrections starting 09.07.2020    beam2pmx add "l" or "u" to "[j"    *)
+  (*  IMPORT Texts, Strings, Files, Oberon, b, Complete, Out;  (*   Import fuer Oberon Version *) *)
+  (*  IMPORT Args32, Strings, Files, Out := WCout, b, Complete, Fifo ;  *)  (* Import fuer Windows-Exe Version  *)
+- IMPORT Args, Files := MyFiles, Strings := Strings1, Out, b, Complete, Fifo;   (* Import for Linux-Version *)
++ IMPORT Args, Files := MyFiles, Strings := Strings1, Out, b, Complete;   (* Import for Linux-Version *)
+ 
+ 
+ CONST 
+@@ -119,7 +119,7 @@
+ 	
+ 	(* 	notes: POINTER TO ARRAY 24  OF ARRAY 3 OF ARRAY 400 OF ARRAY 64 OF  NoteDesc;  *)
+ 
+-	keytotal : ARRAY 132 OF CHAR; countclefchanges : LONGINT; 
++	keytotal : ARRAY 132 OF CHAR;
+ 	unix: BOOLEAN;  outputcont : ARRAY 32 OF CHAR; outputset : SET;
+ 	voicemeasure: POINTER TO ARRAY 30 OF ARRAY 600 OF SET;  
+ 	voiceps: ARRAY 30 OF SET;  
+@@ -138,7 +138,6 @@
+ 	voicecount: ARRAY 30 OF LONGINT;   (* counts different voices within a staff *) countnote, countattr, countdir : LONGINT;
+ 
+ 	ingrace2pmx: LONGINT;  
+-	comline: ARRAY 255 OF CHAR;  
+ 	in, out: ARRAY 128 OF CHAR;  
+ 	lastto, lastfrom: INTEGER;   (* global variable for time progress in measure *)
+ 	pmxdur: ARRAY 16 OF CHAR;   (* global variable: duration of notes in PMX *)
+@@ -206,7 +205,7 @@
+ 	VAR note, part, staff, lastnote: LONGINT;  delta, lastto: INTEGER;  (* global "lastnote" removed 29.11.2016 *)
+ 	BEGIN 
+ 		part := partstaff[ps, 0];  staff := partstaff[ps, 1];  
+-		
++                lastto := 0; lastnote := 0;
+ 		
+ 		IF (measures[measure].voicetime[ps, voice] < measures[measure].duration[part]) THEN 
+ 			  (* Out.Ln();  Out.String( "Fillrests: notefrom. noteto " );  Out.Int( notefrom, 5 );  Out.Int( noteto, 5 ); *)  note := notefrom;  
+@@ -394,33 +393,6 @@
+ 		END;
+ 	END CommandU; 
+ 	
+-	
+-PROCEDURE Stripfilename(sin : ARRAY OF CHAR; VAR sout : ARRAY OF CHAR);
+-(* Version Eduard + ":" Findet den ersten "/" oder " \" von hinten.  und speichert den Pfad in sout*)
+-VAR i, j: LONGINT;
+-BEGIN i := Strings.Length(sin);
+-REPEAT DEC(i) UNTIL (i < 0) OR (sin[i] = "/") OR (sin[i] = "\") OR (sin[i] = ":");
+-j := 0; WHILE (j <= i) & (j < LEN(sout) - 1) DO sout[j] := sin[j]; INC(j) END;
+-sout[j] := 0X;
+-Out.Ln(); Out.String('sin '); Out.String(sin); Out.String(' => '); Out.String(sout); Out.String(' sout')
+-END Stripfilename; 
+-
+-
+-
+-	PROCEDURE Filenames(isEXE : BOOLEAN; VAR comline, infilename, outfilename, outputcontrol : ARRAY OF CHAR );  
+-	VAR pos: LONGINT;  output : ARRAY 64 OF CHAR;
+-	BEGIN 
+-		pos := 0;  IF ( isEXE ) THEN WHILE  (comline[pos] # BLANK) DO INC(pos); END; END;
+-	  (* 	Beim Exe wird der Befehl uebersprungen. *)
+-		b.FindToken( comline, infilename, pos ); Out.Ln();Out.String( infilename );  Out.Ln();  
+-		b.FindToken( comline, outfilename, pos );  Out.String( outfilename );  Out.Ln();
+-		Out.String("outputcontrol : ");
+-		b.FindToken( comline, output, pos ); Strings.Upper(output,outputcontrol);  Out.String( outputcontrol );  SetOutput;
+-       b.voutput := (2 IN outputset); (* Option "V" : voices output for part staff, measure *)
+-       b.FindToken( comline, output, pos ); Strings.StrToInt(output,uptomeasure);
+-       Out.Ln(); Out.String("upper limit of measures : "); Out.Int(uptomeasure,5);
+-	END Filenames;  
+-
+ 	PROCEDURE Voicing( q: b.FIFO);  
+ 	(* calculates an array of Sets vontaining the voices for part, staff and measure. *)
+ 	VAR n: b.Tag;  
+@@ -589,7 +561,7 @@
+ 	(*	Out.Ln(); Out.String("countclefchanges : ");
+ 
+ 		Out.Int(countclefchanges,5); *)
+-
++                Out.Ln()
+ 	END InOut;  
+ 
+ 
+@@ -624,6 +596,7 @@
+ 		lastdirtype: CHAR;  
+ 		posnote: ARRAY 64 OF INTEGER;  
+ 	BEGIN 
++                lastnote := 0;
+ 		idir := 1;  
+ 		WHILE idir <= maxdir DO 
+ 			j := 1;  
+@@ -778,6 +751,7 @@
+ 	PROCEDURE DelTag*;  
+ 	VAR nlast, n, m: b.Tag;  
+ 	BEGIN 
++                nlast := NIL;
+ 		n := b.q.first;  
+ 		WHILE n.next # NIL DO 
+ 			IF (n.next.tagname = notetag) & (n.next.probj = "n") THEN 
+@@ -814,7 +788,7 @@
+ 	(* Writes the data for one note or rest to Files.Rider "W"; called by PROC. W ritePMX; *)
+ 	VAR pmxdur: ARRAY 16 OF CHAR;  sactual : ARRAY 4 OF CHAR;
+ 		pmxnote: ARRAY 64 OF CHAR;  blindrest : ARRAY 32 OF CHAR;
+-		tremolo: ARRAY 32 OF CHAR;   maxinote : LONGINT;
++		tremolo: ARRAY 32 OF CHAR;
+ 		octave: CHAR;  stemchar: CHAR;  maxnotelastmeasure : LONGINT;
+ 	
+ 	BEGIN 
+@@ -1168,7 +1142,7 @@
+ 		restbefore, restafter: ARRAY 16 OF CHAR;  
+ 	
+ 	BEGIN 
+-		ipickup := 0;  
++		ipickup := 0; keychanged := FALSE;
+ 		IF attributes[1].pickup > 0 THEN ipickup := 1;  END;  
+ 		(* Write transposition string s *)
+ 	(*	part := 1;  
+@@ -1444,8 +1418,9 @@
+ 
+ 					b.findnextnote( n, m );   (* Out.Char("|"); Out.Int(n.nr,5); Out.Int(staff,5); Out.Char("|");Out.Int(m.nr,5);Out.Int(m.staff,5); *)
+ 					(*	Out.Ln(); Out.String(" beam : continue "); *)
+-					IF (m.staff # staff) THEN j := "j";  c := "]";  END;  
++					IF (m.staff # staff) THEN j := "j";  c := "]" ELSE c := "?" END;  
+ 				END;  
++                        ELSE c := "?"
+ 			END;  
+ 			Strings.AppendCh( pmxbeam, c );  
+ 			IF (j = "j") (* neuer Code fuer joined beams *)
+@@ -1554,6 +1529,7 @@
+ 		slash, type, stem: ARRAY 32 OF CHAR;  
+ 		snograce,str,accpmx: ARRAY 4 OF CHAR;  ns : CHAR; no : LONGINT;
+ 	BEGIN 
++                isgrace := FALSE;
+ 		b.loesch( res );  
+ 		WHILE (n.next # NIL ) & (n.tagname # eonotetag) DO  (* loop over all tags of the note 1 *)
+ 			(*	Out.Ln();  Out.String( n.tagname );  *)
+@@ -2177,7 +2153,7 @@
+ 	(* runs through the list of tags and calls NotesProp and MeasuresProp and lists the tag-data in System.Log *)
+ 	VAR n: b.Tag;   voice01: LONGINT;  
+ 	BEGIN 
+-		n := b.q.first; 
++		n := b.q.first; voice01 := 0;
+ 		Out.Ln();  Out.String( "EnumerateTags : " );  
+ 		Out.String( "part, staff, voice, measure, note, tag, names/values, between" );  Out.Ln();
+ 		WHILE n.next # NIL DO  (* 1 *)
+@@ -2474,7 +2450,8 @@
+ 		chord: CHAR;  noteduration: LONGINT;  
+ 		durationsv: ARRAY 25 OF ARRAY 10 OF LONGINT;  
+ 	BEGIN 
+-		n := q.first;   Out.Ln();  Out.String( " PROCEDURE Pickup : " );  
++		n := q.first;   isnote := FALSE;   chord := 0X;
++                Out.Ln();  Out.String( " PROCEDURE Pickup : " );  
+ 		WHILE (n.next # NIL ) & (n.tagname # measuretag) DO n := n.next;  END;   (* first measure of first part found *)
+ 	(*	 b.OutTag( n, TRUE );  *)   COPY( n.endtag, endtag );  duration := 0;  
+ 		WHILE (n.next # NIL ) & (n.tagname # endtag) DO  (* Loop over all elements of 1st measure / 1st instrument /1st staff *)
+@@ -2599,6 +2576,7 @@
+ 	(* Calculates the horizontal position of each note in a measure and stores it in the tag.  *)
+ 	VAR n: b.Tag;  ps: LONGINT;    
+ 	BEGIN 
++                ps := 0;
+ 		n := q.first;  
+ 		
+ 		WHILE (n.next # NIL ) DO (* 1 *)
+@@ -2850,7 +2828,7 @@
+ 		
+ 	BEGIN 
+ 		
+-		attnum := 0;  dirnum := 0;  part := 0;  measure := 0;  
++		attnum := 0;  dirnum := 0;  part := 0;  measure := 0;  note := 0;  voice := 0;
+ 		
+ 		(******************** Read XML-Information ****************************)
+ 		b.ReadUntilTx( R, ">", pmxcontrol.xml );  Out.Ln();  Out.String( pmxcontrol.xml );  
+diff --git a/obsrc/b.m b/obsrc/b.m
+--- a/obsrc/b.m
++++ b/obsrc/b.m
+@@ -36,7 +36,7 @@
+ 			END;  
+ 
+ 			
+-VAR q* : FIFO; maxtag : LONGINT; nfirst : Node; voutput* : BOOLEAN; nostaves* : LONGINT; unix* : BOOLEAN;
++VAR q* : FIFO; voutput* : BOOLEAN; nostaves* : LONGINT; unix* : BOOLEAN;
+ sout : ARRAY 64 OF CHAR; (* target file path and directory *)
+ tieunusdnum*: ARRAY 27 OF ARRAY 3 OF SET;
+ tieq: ARRAY 27 OF ARRAY 2 OF Fifo.FIFO; 
+@@ -58,7 +58,7 @@
+ 	(* Translates a beginning or ending slur from XML to PMX. *)
+ 	
+ 	VAR c, cs : CHAR;  
+-		type, number, placement: ARRAY 32 OF CHAR;  inumber : LONGINT; res : ARRAY 4 OF CHAR;
++		type, number, placement: ARRAY 32 OF CHAR;  inumber : LONGINT;
+ 	BEGIN 
+ 		loesch( pmxslur );  FindAtt( n, "type", type );  FindAtt( n, "number", number );  
+ 		IF ( number # "" ) THEN
+@@ -72,6 +72,7 @@
+ 			COPY( BLANK, pmxslur );  
+ 			IF (type = "start") THEN c := "(";  
+ 			ELSIF (type = "stop") THEN c := ")"
++                        ELSE c := "?"
+ 			END;  
+ 			Strings.AppendCh( pmxslur, c );  
+ 		Strings.AppendCh( pmxslur, cs );  
+@@ -205,7 +206,7 @@
+ 	(* Command to list the different tags after calling the comman "Testbed.AalyzeXML" *)
+ 	VAR n: Tag;  first, st: Node;  
+ 	BEGIN 
+-		
++		first := NIL;
+ 		n := q.first;  
+ 		WHILE n # NIL DO NEW( st );  COPY( n.tagname, st.key );  InsertRanked( first, st );  n := n.next;  END;  
+ 		st := first;  Out.Ln(); Out.String("===============================================");
+@@ -320,9 +321,10 @@
+ 	END findnextnotestaff;
+ 	
+ 	PROCEDURE compareTag*;
+-	VAR m,n : Tag;
++	VAR n : Tag;
+ 	VAR i : LONGINT;
+ 	BEGIN
++        i := 0;
+ 	n := q.first;
+ 	WHILE  i < 1000 DO
+ 	OutTag(n,TRUE); 
+@@ -488,7 +490,7 @@
+ END 
+ MinDist;
+ PROCEDURE testMinDist*;
+-VAR pos : ARRAY 5 OF INTEGER; x : INTEGER;
++VAR pos : ARRAY 5 OF INTEGER;
+ 	
+ BEGIN
+ pos[0] := 57;
+@@ -529,22 +531,6 @@
+ 	END pmxTremolo;
+ 	
+ 	
+-	PROCEDURE ReadIntF(VAR W : Files.Rider; digits : LONGINT) : LONGINT;
+-(* Formatted read of LONGINT from file *)
+-VAR i : LONGINT; ints : ARRAY 16 OF CHAR;
+-BEGIN
+-loesch(ints);
+-i := 0; WHILE i < digits DO Files.Read(W,ints[i]); INC(i) END;
+-ints[i] := 0X; Strings.StrToInt(ints,i); RETURN i;
+-END ReadIntF;
+-PROCEDURE ReadStringF(VAR W : Files.Rider; digits : LONGINT; VAR s : ARRAY OF CHAR);
+-(* Formatted read of STRING with length "digits"  from file *)
+-VAR i : LONGINT; 
+-BEGIN
+-loesch(s);
+-i := 0; WHILE i < digits DO Files.Read(W,s[i]); INC(i) END;
+-s[i] := 0X;
+-END ReadStringF;
+ PROCEDURE ReadStringUntil*(VAR W : Files.Rider; split : CHAR; VAR s : ARRAY OF CHAR);
+ (* Formatted read of STRING until "split" Character  from file *)
+ VAR i : LONGINT; c : CHAR;
+@@ -613,7 +599,7 @@
+ 	END strbetween;  
+ 	PROCEDURE Copywo*( VAR fin, fout: Files.File );  
+ 	(* Copies a File and eliminates multiple BLANKs. *)
+-	VAR ch, first: CHAR;  rin, rout: Files.Rider;  column, line: LONGINT;  
++	VAR ch: CHAR;  rin, rout: Files.Rider;  column: LONGINT;  
+ 	BEGIN 
+ 		Files.Set( rin, fin, 0 );  Files.Set( rout, fout, 0 );  column := 0;  Files.Read( rin, ch );  
+ 		WHILE ~rin.eof DO 

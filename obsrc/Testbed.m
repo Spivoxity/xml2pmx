@@ -384,8 +384,8 @@ VAR
 			SetOutput;       b.voutput := (2 IN outputset);
 				IF ( kno = 5 ) THEN Args.GetArg(4,output); Strings.StrToInt(output,uptomeasure);
 				Out.Ln(); Out.String(" number of bars to be processsed : "); Out.Int(uptomeasure,5);
-                                Out.Ln(); END; 
-              		Out.String( "Linux Binary XML2PMX Copyright 2016/2017 Dieter Gloetzel" );  Out.Ln();	
+Out.Ln(); END; 
+		Out.String( "Linux Binary XML2PMX Copyright 2015/2021 Dieter Gloetzel" );  Out.Ln();	
 			InOut(in, out);
 		ELSE
 			Args.GetArg(0, in);
@@ -441,7 +441,7 @@ PROCEDURE InOut( infilename, outfilename: ARRAY OF CHAR );
 		outfilenameprep: ARRAY 64 OF CHAR;  
 		fprep: Files.File;  rprep: Files.Rider;  res : INTEGER;
 	BEGIN 
-		Out.Ln();  Out.String( "This is XML2PMX.EXE Version 16. dyn. alloc." );  fi := Files.Old( infilename );  
+		Out.Ln();  Out.String( "This is XML2PMX Version 16. dyn. alloc." );  fi := Files.Old( infilename );  
 	IF (fi # NIL ) THEN  	(* 1*)
 				Files.Set( ri, fi, 0 );  
 			(***************************************)
@@ -615,8 +615,8 @@ PROCEDURE InOut( infilename, outfilename: ARRAY OF CHAR );
 						lastps := ps;  ps := linstaff( nostaves, part, staff );  firstnote := minnote0[part, staff, measure]; 
 		IF (notes[ps,0,measure,firstnote].grace > 0) THEN  (* first note is grace note and cannot carry dynamic marks *) 
 				
-				Out.Ln(); Out.String("DistrDir : ");Out.Int(ps,5); Out.Int(measure,5); Out.Int(firstnote,5); Out.Char("|");
-				Out.Int(notes[ps,0,measure,firstnote].grace,5 ); Out.Int(lastnote,5); 
+				(* Out.Ln(); Out.String("DistrDir : ");Out.Int(ps,5); Out.Int(measure,5); Out.Int(firstnote,5); Out.Char("|");
+				Out.Int(notes[ps,0,measure,firstnote].grace,5 ); Out.Int(lastnote,5); *)
 								
 				REPEAT INC(firstnote) UNTIL notes[ps,0,measure,firstnote].grace = 0;
 				Out.Ln(); Out.String(" first real note at ps, measure, note :"); Out.Int(ps,5); Out.Int(measure,5); Out.Int(firstnote,5); 
@@ -630,8 +630,8 @@ PROCEDURE InOut( infilename, outfilename: ARRAY OF CHAR );
 						
 						IF (notes[ps, 0, measure, lastnote].lefttext = "") THEN 
 							Strings.Append( notes[ps, 0, measure, lastnote].lefttext, directions[idir, j].pmxdirection ); (* pmxdirection pruefen *)
-							Out.Ln(); Out.String("idir,j,pmxdirection "); Out.Int(idir,5); Out.Char("|");Out.Int(j,5); Out.Char("|");
-							Out.String(directions[idir,j].pmxdirection);
+							(* Out.Ln(); Out.String("idir,j,pmxdirection "); Out.Int(idir,5); Out.Char("|");Out.Int(j,5); Out.Char("|");
+							Out.String(directions[idir,j].pmxdirection); *)
 						
 						ELSE 
 							b.APPzca( notes[ps, 0, measure, lastnote].lefttext, directions[idir, j].pmxdirection );  
@@ -1090,7 +1090,7 @@ END;
 		END;   (*1*)
 		(*	IF (Note.direction > 0) THEN  (* 19*)
 		
-		OutDir( Note.direction );  
+		(* OutDir( Note.direction );  *)
 		 Files.Write( W, Note.direction );  Files.Write( W, CR );  Files.Write( W, NL );  
 	END;   (* 19*) *)
 		(*  directions within measures are written *)
@@ -1605,7 +1605,7 @@ END;
 			IF n.tagname = steptag THEN notestep := Strings.LowerCh(n.between[0]);  END;
 			IF n.tagname = octavetag THEN noteoctave := b.ExtractInt(n.between);  END;
 			IF n.tagname = "<accidental>" THEN 
-				IF( n.between = "sharp") THEN Out.String("sharp"); COPY( "s", accpmx ); 	END;							
+				IF( n.between = "sharp") THEN  COPY( "s", accpmx ); 	END;							
 				IF ( n.between = "flat") THEN 		COPY( "f", accpmx ); END; 					 					
 				IF (n.between = "double-sharp") OR (n.between = "sharp-sharp") THEN COPY( "ss", accpmx ); END;
 				IF (n.between = "flat-flat") OR (n.between = "double-flat") THEN COPY( "ff", accpmx ); END;
@@ -2336,7 +2336,7 @@ INC
 					maxdirtype[dirnum] := b.Max( dirtypenr, maxdirtype[dirnum] );  
 					 (* Out.Ln(); Out.String("dirtypenr : ");				Out.Int(dirtypenr,5);*)
 					pmxDirections( dirnum, dirtypenr, res );  COPY( res, directions[dirnum, dirtypenr].pmxdirection );  
-					(*  OutDir(dirnum,dirtypenr);  *)Out.Ln(); 
+					(*  OutDir(dirnum,dirtypenr);  *)
 					
 		(*		 Out.Int(dirnum,5); Out.String("| in directionprop "); 	Out.String(res); Out.String(directions[dirnum, dirtypenr].pmxdirection); *)
 					
@@ -2734,10 +2734,10 @@ WHILE n.tagname # "</attributes>" DO  (* 2*)
 		Files.Write( W, CR );  Files.Write( W, NL );  
 
 		i := nostaves - 1;  
-		WHILE i >= 0 DO part := partstaff[i, 0];  staff := partstaff[i, 1];  Out.Ln();  
+		WHILE i >= 0 DO part := partstaff[i, 0];  staff := partstaff[i, 1]; (* Out.Ln();  
 
 			 Out.String( "control data :  i, part, staff, sign, line, clef special clef " );  Out.Int( i, 5 );  Out.Int( part, 5 );  
-			Out.Int( staff, 5 );  
+			Out.Int( staff, 5 );  *)
 
 			b.clefPMX( attributes[part].clefsign[staff], SHORT( attributes[part].clefline[staff] ), clef, clefspec[i] );  
 			lastclef[i] := clef;  Files.Write( W, clef );  Out.Char( attributes[part].clefsign[staff] );  

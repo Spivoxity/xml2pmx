@@ -1,0 +1,92 @@
+# HG changeset patch
+# Parent  cbb5efdc63ad0cd7feeb5e0b29939e01b3decf34
+
+diff --git a/obsrc/Complete.m b/obsrc/Complete.m
+--- a/obsrc/Complete.m
++++ b/obsrc/Complete.m
+@@ -1,5 +1,6 @@
+ MODULE Complete;
+-IMPORT Strings, Out; (* Out := WCout; *)
++IMPORT Strings := Strings1, Out;
++TYPE LONGINT = INTEGER;
+ VAR pmxdur : ARRAY 10 OF ARRAY 4 OF CHAR; durvec : ARRAY 10 OF INTEGER; ixmax : LONGINT; 
+ notetypexml: ARRAY 10 OF ARRAY 8 OF CHAR; notetypepmx: ARRAY 10 OF CHAR;  
+ notetypei : ARRAY 10 OF INTEGER; (* inverse of notetype index 0 => 64 *)
+diff --git a/obsrc/Testbed.m b/obsrc/Testbed.m
+--- a/obsrc/Testbed.m
++++ b/obsrc/Testbed.m
+@@ -16,9 +16,9 @@
+     You should have received a copy of the GNU General Public License
+     along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
+     (* corrections starting 09.07.2020    beam2pmx add "l" or "u" to "[j"    *)
+- IMPORT (* Texts, Strings, Files, Oberon, b, Complete, Out;  (*   Import fuer Oberon Version *) *)
++ (*  IMPORT Texts, Strings, Files, Oberon, b, Complete, Out;  (*   Import fuer Oberon Version *) *)
+  (*  IMPORT Args32, Strings, Files, Out := WCout, b, Complete, Fifo ;  *)  (* Import fuer Windows-Exe Version  *)
+- 	 IMPORT Args, MyFiles, Strings:=String1, Out, b, Complete, Fifo;   (* Import for Linux-Version *)
++ IMPORT Args, Files := MyFiles, Strings := Strings1, Out, b, Complete, Fifo;   (* Import for Linux-Version *)
+ 
+ 
+ CONST 
+@@ -369,11 +369,10 @@
+ 		Filenames(TRUE,comline,in,out,outputcont); 
+ 		Stripfilename(out,sout); InOut( in, out );  
+ 	END commandX;   *)
+-	PROCEDURE commandU; 
++	PROCEDURE CommandU; 
+ 	 VAR output : ARRAY 16 OF CHAR; kno : LONGINT;
+ 	BEGIN
+-		IF Args.Static THEN
+-		kno := Args.NoOfArgs;
++		kno := Args.argc;
+ 		IF ( kno >= 3 ) THEN
+ 			Args.GetArg(1, in); Out.Ln();Out.String(in);
+ 			Args.GetArg(2, out); Out.Ln(); Out.String(out);
+@@ -386,16 +385,14 @@
+ 			SetOutput;       b.voutput := (2 IN outputset);
+ 				IF ( kno = 5 ) THEN Args.GetArg(4,output); Strings.StrToInt(output,uptomeasure);
+ 				Out.Ln(); Out.String(" number of bars to be processsed : "); Out.Int(uptomeasure,5);
+-Out.Ln(); END; 
+-		Out.String( "Linux Binary XML2PMX Copyright 2016/2017 Dieter Gloetzel" );  Out.Ln();	
++                                Out.Ln(); END; 
++              		Out.String( "Linux Binary XML2PMX Copyright 2016/2017 Dieter Gloetzel" );  Out.Ln();	
+ 			InOut(in, out);
+ 		ELSE
+ 			Args.GetArg(0, in);
+ 			Out.String(in); Out.String(" error: argument number < 2 "); Out.Ln;
+ 		END;
+-		Args.Shutdown(0);
+-	END;
+-	END commandU; 
++	END CommandU; 
+ 	
+ 	
+ PROCEDURE Stripfilename(sin : ARRAY OF CHAR; VAR sout : ARRAY OF CHAR);
+@@ -3035,13 +3032,13 @@
+ 		END;  
+ 		INC( part );  
+ 	END;  
+-	unix := FALSE;   (* CRLF end of line; for LF end of line set unix := TRUE. *)
++	unix := TRUE;   (* CRLF end of line; for LF end of line set unix := TRUE. *)
+ 	b.unix := unix; (* inform MODULE "b" about end of line character. *)
+ 	(********************* Read CommandLine ***************)
+ 	(* commandO; never activate   call externally for Oberon-Version   ***********)
+ 	(*****************************************************)
+ 	(*  commandX;    *)  (* activate for Windows-Exe Version *******)
+ 	(**************** ******************************)
+-	(* CommandU;   *)  (* activate for Linux-Binary Version *************)
++	CommandU;     (* activate for Linux-Binary Version *************)
+ 	
+ END Testbed.
+diff --git a/obsrc/b.m b/obsrc/b.m
+--- a/obsrc/b.m
++++ b/obsrc/b.m
+@@ -1,7 +1,8 @@
+ MODULE b;
+ (* Achtung "PrintRange" eingebaut, zusaetzliche Importe *)
+ 	
+-IMPORT Files, Strings, Fifo,Out, Oberon ; (*Out := WCout; *)
++IMPORT Files := MyFiles, Strings := Strings1, Fifo, Out;
++TYPE LONGINT = INTEGER;
+ CONST CR= 0DX; NL = 0AX; BLANK = 20X; DBLQUOTE = 22X; TAB=09X;
+ TYPE
+ 	Tag* = POINTER TO TagDesc;   (* List structure for data acquisition *)
