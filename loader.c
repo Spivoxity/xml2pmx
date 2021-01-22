@@ -73,7 +73,9 @@ static int get_int(uchar *p) {
 #define REL_BLOCK 4096
 
 static void reloc(int base, const uchar rbuf[], int size) {
-     for (int i = 0; i < size; i += WORD_SIZE) {
+     int i;
+
+     for (i = 0; i < size; i += WORD_SIZE) {
           int rbits = reloc_bits(rbuf, i/WORD_SIZE);
 
 #ifdef DEBUG
@@ -298,6 +300,8 @@ extern const struct _sym { int kind; char *name; int val; } preload_syms[];
 
 /* load_image -- unpack preloaded image */
 void load_image(void) {
+     int i;
+     
      code_size = seglen[S_CODE];
      stack_size = seglen[S_STACK];
      nmods = preload_nmods;
@@ -317,7 +321,7 @@ void load_image(void) {
      stack_vbase = map_segment(stack, stack_size);
 #endif
 
-     for (int i = 0; i < nsyms; i++) {
+     for (i = 0; i < nsyms; i++) {
           const struct _sym *s = &preload_syms[i];
           switch (s->kind) {
           case X_PROC:

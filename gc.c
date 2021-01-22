@@ -261,7 +261,7 @@ void *scratch_alloc(unsigned size) {
      return p;
 }
 
-#else // SEGMEM
+#else /* SEGMEM */
 
 /* To permit the use of malloc() as the only way of getting storage,
    we can simulate segmented memory in software.  The key to this is
@@ -293,8 +293,8 @@ void *scratch_alloc(unsigned size) {
      return p;
 }
 
-void *segmap[NSEGMENTS]; // Base of each segment as a (maybe 64-bit) pointer
-static int nsegs = 1; // Segment 0 used for NULL
+void *segmap[NSEGMENTS]; /* Base of each segment as a (maybe 64-bit) pointer */
+static int nsegs = 1; /* Segment 0 used for NULL */
 
 /* map_segment -- allocate segment registers */
 word map_segment(void *p, unsigned len) {
@@ -419,7 +419,7 @@ static hdrptr new_list(void) {
 
 /* Say "for (headers(h, list))" to traverse a cyclic list of headers. */
 #define headers(h, list) \
-     hdrptr h = hdr(list)->h_next; h != list; h = hdr(h)->h_next
+     h = hdr(list)->h_next; h != list; h = hdr(h)->h_next
 
 
 /* PAGE TABLE */
@@ -471,9 +471,10 @@ static word empty_index;
 
 /* page_setup -- make page table entries point to a given header */
 static void page_setup(word base, unsigned size, hdrptr h) {
-     ASSERT(size % PAGESIZE == 0);
+     word p;
 
-     for (word p = base; p < base + size; p += PAGESIZE) {
+     ASSERT(size % PAGESIZE == 0);
+     for (p = base; p < base + size; p += PAGESIZE) {
 	  /* Make sure lower index exists */
 	  if (page_table[top_part(p)] == empty_index)
 	       page_table[top_part(p)] = virtual_alloc(sizeof(page_index));
@@ -483,8 +484,10 @@ static void page_setup(word base, unsigned size, hdrptr h) {
 }
 
 static void init_pagetable(void) {
+     int i;
+     
      empty_index = virtual_alloc(sizeof(page_index));
-     for (int i = 0; i < TOP_SIZE; i++) page_table[i] = empty_index;
+     for (i = 0; i < TOP_SIZE; i++) page_table[i] = empty_index;
 }
 
 
@@ -596,7 +599,7 @@ static hdrptr free_block(hdrptr h, mybool mapped) {
 
 /* find_block -- find a free block of specified size */
 static hdrptr find_block(unsigned size, unsigned objsize) {
-     hdrptr h = 0;
+     hdrptr h = 0, h2;
      int i = min(size/PAGESIZE, BIG_BLOCK);
 
      ASSERT(size % PAGESIZE == 0);
@@ -717,6 +720,7 @@ static void init_sizes(void) {
 	the biggest multiple of GRANULE that allows the same number
 	of objects in a page. */
 
+     int i;
      unsigned k;
 
      n_sizes = 0; 
@@ -745,7 +749,7 @@ static void init_sizes(void) {
      ASSERT(size_bytes[n_sizes-1] == MAX_SMALL_BYTES);
 
      k = 0;
-     for (int i = 0; i < n_sizes; i++)
+     for (i = 0; i < n_sizes; i++)
 	  while (k * BYTES_PER_WORD <= size_bytes[i]) size_map[k++] = i;
 
      ASSERT(size_map[MAX_SMALL_WORDS] == n_sizes-1);
@@ -937,7 +941,7 @@ static word map_next(word p) {
 
 /* redir_map -- interpret a pointer map, redirecting each pointer */
 static void redir_map(unsigned map, word origin, int bmshift) {
-     int count, stride, op, ndim;
+     int count, stride, op, ndim, i;
      word base, p;
 
      if (map == 0) return;
@@ -1006,7 +1010,7 @@ static void redir_map(unsigned map, word origin, int bmshift) {
                     count = get_word(p, 2);
                     stride = get_word(p, 3);
 
-                    for (int i = 0; i < count; i++)
+                    for (i = 0; i < count; i++)
                          redir_map(p + 16, base + i*stride, 0);
 
                     break;
@@ -1015,7 +1019,7 @@ static void redir_map(unsigned map, word origin, int bmshift) {
                     base = origin + get_word(p, 1);
                     count = get_word(p, 2);
 
-                    for (int i = 0; i < count; i++)
+                    for (i = 0; i < count; i++)
                          redirect((word *) &get_word(base, i));
 
                     break;
@@ -1034,13 +1038,13 @@ static void redir_map(unsigned map, word origin, int bmshift) {
 
                     /* Compute the number of elements */
                     count = 1;
-                    for (int i = 0; i < ndim; i++) 
+                    for (i = 0; i < ndim; i++) 
                          count *= get_word(base, i+1);
 	       
                     /* Get address of the local copy */
                     base = get_word(base, 0); 
 
-                    for (int i = 0; i < count; i++)
+                    for (i = 0; i < count; i++)
                          redir_map(p + 16, base + i*stride, 0);
 
                     break;
@@ -1059,10 +1063,10 @@ static void redir_map(unsigned map, word origin, int bmshift) {
 
 /* traverse_stack -- chain down the stack, redirecting in each frame */
 static void traverse_stack(value *xsp) {
-     value *sp = NULL;
+     value *sp = NULL, *f;
      unsigned pc = 0;
 
-     for (value *f = xsp; f != NULL; f = valptr(f[BP])) {
+     for (f = xsp; f != NULL; f = valptr(f[BP])) {
 	  value *c = valptr(f[CP]);
           unsigned stkmap = 0;
 
@@ -1101,6 +1105,7 @@ static void migrate(void) {
      hdrptr thumb[N_SIZES], big_thumb = block_pool[n_sizes];
      word finger[N_SIZES];
      mybool changed;
+     int i;
 
      /* For each pool, we keep a 'thumb' pointing to one of the blocks
 	in the pool, and a 'finger' pointing somewhere in that block.
@@ -1118,7 +1123,7 @@ static void migrate(void) {
 	change, we must check all pools again in case more objects
 	have migrated into the new space. */
 
-     for (int i = 0; i < n_sizes; i++) {
+     for (i = 0; i < n_sizes; i++) {
 	  thumb[i] = block_pool[i];
 	  finger[i] = 0;
      }
@@ -1126,7 +1131,7 @@ static void migrate(void) {
      do {
 	  changed = FALSE;
 
-	  for (int i = 0; i < n_sizes; i++) {
+	  for (i = 0; i < n_sizes; i++) {
 	       while (finger[i] != free_ptr[i]) {
 		    if (thumb[i] == block_pool[i] ||
                         finger[i] + pool_size(i) 
@@ -1181,6 +1186,7 @@ void gc_dump(void) {
 #ifdef DEBUG
      unsigned i;
      unsigned total, small_total = 0, big_total = 0, free_total = 0;
+     hdrptr h;
 
      printf("Active blocks\n");
      for (i = 0; i < n_sizes; i++) {
@@ -1237,6 +1243,8 @@ void gc_dump(void) {
 }
 
 value *gc_collect(value *sp) {
+     int i;
+
      if (!gcflag) return sp;
 
      GC_TRACE("[gc");
@@ -1245,7 +1253,7 @@ value *gc_collect(value *sp) {
      pool_total = 0;
 
      /* Flip semispaces */
-     for (int i = 0; i <= n_sizes; i++) {
+     for (i = 0; i <= n_sizes; i++) {
 	  hdrptr h = block_pool[i];
           block_pool[i] = old_pool[i]; old_pool[i] = h;
 	  ASSERT(empty(block_pool[i]));
@@ -1257,7 +1265,7 @@ value *gc_collect(value *sp) {
      migrate();			/* Redirect internal pointers */
 
      /* Free old semispace */
-     for (int i = 0; i <= n_sizes; i++) {
+     for (i = 0; i <= n_sizes; i++) {
 	  while (! empty(old_pool[i])) {
 	       hdrptr h = hdr(old_pool[i])->h_next;
 	       unlink(h);

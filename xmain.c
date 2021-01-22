@@ -128,8 +128,9 @@ void make_symbol(const char *kind, char *name, word addr) {
 /* fix_sizes -- calculate module lengths */
 void fix_sizes(int dseg) {
      word p = dsegaddr(dmem + dseg);
+     int i;
 
-     for (int i = nmods-1; i >= 0; i--) {
+     for (i = nmods-1; i >= 0; i--) {
 	  modtab[i]->m_length = p - modtab[i]->m_addr;
 	  p = modtab[i]->m_addr;
      }
