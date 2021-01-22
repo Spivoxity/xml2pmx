@@ -83,7 +83,7 @@ TYPE
 		pitchoctave: INTEGER;  
 		pitchstep: CHAR;  
 		pmxgrace: ARRAY 32 OF CHAR;  (* Aenderung 16.11.2020 *)
-		pmxnote: ARRAY 32 OF CHAR;  
+		pmxnote: ARRAY 64 OF CHAR;  
 		probj: BOOLEAN;   (* evaluates print-object = "no" TRUE means "print", FALSE don't print *)
 		rbleft, rbright: ARRAY 32 OF CHAR;   (* blind rests to fill incomplete measures *)
 		repeat: ARRAY 16 OF CHAR;  
