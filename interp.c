@@ -114,8 +114,8 @@ static inline void putlong(value *v, longint x) {
 #define stl(a, x, t)    indir(local(a), t) = x
 #define ldg(a, t)       indir(pointer(const(a)), t)
 #define stg(a, x, t)    indir(pointer(const(a)), t) = x
-#define ldn(a, x)       indir(pointer(x)+a, int)
-#define stn(a, x, y)    indir(pointer(y)+a, int) = x
+#define ldn(a, x)       indir((char *) pointer(x) + a, int)
+#define stn(a, x, y)    indir((char *) pointer(y) + a, int) = x
 #define ldi(x, y, t)    subs(pointer(x), y.i, t)
 #define sti(x, y, z, t) subs(pointer(y), z.i, t) = x
 

@@ -4708,39 +4708,6 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
-# Indexed jumps allow the interpreter to run faster, but it works
-# without them.
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for indexed jumps" >&5
-$as_echo_n "checking for indexed jumps... " >&6; }
-if ${ac_cv_c_indexed_jumps+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-void *a[] = { &&b, &&c }; b: goto *a[1]; c:;
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  ac_cv_c_indexed_jumps=yes
-else
-  ac_cv_c_indexed_jumps=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_c_indexed_jumps" >&5
-$as_echo "$ac_cv_c_indexed_jumps" >&6; }
-    if test $ac_cv_c_indexed_jumps = yes; then
-
-$as_echo "#define HAVE_INDEXED_JUMPS 1" >>confdefs.h
-
-    fi
-
 # M64X32 allows Keiko programs (with 4-byte pointers) to run on machines
 # with a 64-bit address space.
 # The cast to long int works around a bug in the HP C Compiler

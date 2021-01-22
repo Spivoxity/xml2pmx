@@ -20,6 +20,6 @@ check:
 	for f in $(MYTESTS); do \
 	    $(ECHO) -n "$$f: "; \
 	    if ./xml2pmx test/$$f.xml $$f.pmx a 0 >/dev/null \
-		    && ($(FIXUP) <$$f.pmx | cmp test/$$f.exp -); then \
+		    && cmp test/$$f.exp $$f.pmx; then \
 		$(ECHO) "PASS"; else $(ECHO) "FAIL"; fi; \
 	done

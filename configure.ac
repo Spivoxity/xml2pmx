@@ -17,10 +17,6 @@ AC_C_UNUSED
 AC_C_USED
 AC_C_NORETURN
 
-# Indexed jumps allow the interpreter to run faster, but it works
-# without them.
-AC_C_INDEXED_JUMPS
-
 # M64X32 allows Keiko programs (with 4-byte pointers) to run on machines
 # with a 64-bit address space.
 AC_CHECK_SIZEOF([int *])

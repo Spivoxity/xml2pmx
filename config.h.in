@@ -6,9 +6,6 @@
 /* Debug */
 #undef DEBUG
 
-/* Define if indexed jumps work. */
-#undef HAVE_INDEXED_JUMPS
-
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 

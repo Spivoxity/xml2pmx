@@ -74,6 +74,8 @@ static int get_int(uchar *p) {
 
 static void reloc(int base, const uchar rbuf[], int size) {
      int i;
+     value *p;
+     unsigned m;
 
      for (i = 0; i < size; i += WORD_SIZE) {
           int rbits = reloc_bits(rbuf, i/WORD_SIZE);
@@ -85,8 +87,8 @@ static void reloc(int base, const uchar rbuf[], int size) {
 
           if (rbits == R_NONE) continue;
 
-          value *p = (value *) &dmem[base+i];
-          unsigned m = get_int((uchar *) p);
+          p = (value *) &dmem[base+i];
+          m = get_int((uchar *) p);
 
           switch (rbits) {
           case R_WORD:
