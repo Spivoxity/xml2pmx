@@ -221,8 +221,6 @@ value *P_GetArgc(value *bp) {
      return sp;
 }
 
-type_I unlink(type_X);
-
 value *P_unlink(value *bp) {
      value *sp = bp;
      FPINIT;

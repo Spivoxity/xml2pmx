@@ -101,7 +101,7 @@ BEGIN
 END Register;
 
 (* Unix system call *)
-PROCEDURE unlink(name: ARRAY OF CHAR): INTEGER IS "unlink";
+PROCEDURE unlink(name: ARRAY OF CHAR): INTEGER IS "=unlink";
 
 PROCEDURE Delete*(name: ARRAY OF CHAR; VAR res: INTEGER);
 BEGIN
