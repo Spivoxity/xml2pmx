@@ -72,7 +72,13 @@ extern void *segmap[];
 EXTERN word stack_vbase, data_vbase;
 
 #define physmap(a) \
-     ((void *) ((char *) segmap[a >> SEGBITS] + (a & SEGMASK)))
+     ((void *) ((char *) segmap[(a) >> SEGBITS] + ((a) & SEGMASK)))
+
+/*
+static inline void *physmap(unsigned a) {
+     return (char *) segmap[a >> SEGBITS] + (a & SEGMASK);
+}
+*/
 
 #else
 
