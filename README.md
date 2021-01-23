@@ -83,4 +83,23 @@ and procedures, and local variables not explicitly initialised.
 
 7. In the root directory, use "make check" to run regression tests.
 
+Hints for installing bytecode interpreter
+-----------------------------------------
+
+We must stick to the C90 standard, and in particular,
+
+* Declare controlled variables outside a for loop, not in the loop heading.
+
+* Avoid arithmetic on void * pointers.
+
+* Don't mix declarations and code in a sequence.
+
+* Avoid static inline functions in header files -- see physmap in obx.h.
+
+* Get rid of the varargs macros from keiko.h.
+
+* For the sake of unlink, include unistd.h into primtab0.c.
+  Complicated story: on MinGW, stdio.h contains an incompatible
+  (because const pointer parameters) declaration of unlink.
+
 -- JMS, 22/1/21
