@@ -2,6 +2,7 @@
 
 #include "primtab.h"
 #include <stdio.h>
+#include <unistd.h>
 
 type_V xmain_exit(type_I);
 
