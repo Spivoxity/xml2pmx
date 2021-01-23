@@ -320,10 +320,6 @@ VAR
 
 	PROCEDURE SetOutput*;
 	VAR c : CHAR; i : LONGINT;
-	PROCEDURE OutSet(s : SET);	VAR i : LONGINT;
-	BEGIN
-	i := 0; WHILE i < 32 DO IF (i IN s) THEN Out.Int(i,5); Out.Char("|") END; INC(i); END;	
-	END OutSet;
 	BEGIN
 	i := 0; WHILE i < Strings.Length(outputcont) DO
 	c := outputcont[i];
@@ -339,12 +335,11 @@ VAR
 	| "T" : INCL(outputset,6); (* remove all ties *)
 	| "G" : INCL(outputset,7); (* eliminate slurs around grace notes, replace by PMX internal Grace notes. *)
 	| "X" : INCL(outputset,8); (* x-option for voice crossing slurs, only with PMX282 *)
-	| "n"  :  (* no option chosen *)
+	| "N"  :  (* no option chosen *)
 	
 	ELSE Out.String(" option not implemented.")
 	END;
 	INC(i); END;
-	OutSet(outputset);
 	END SetOutput;
 
 (*	PROCEDURE commandO*;   (* Command for Oberon-Version *)
@@ -373,18 +368,14 @@ VAR
 	BEGIN
 		kno := Args.argc;
 		IF ( kno >= 3 ) THEN
-			Args.GetArg(1, in); Out.Ln();Out.String(in);
-			Args.GetArg(2, out); Out.Ln(); Out.String(out);
+			Args.GetArg(1, in);
+			Args.GetArg(2, out);
 			COPY(out,sout);
 			Strings.ChangeSuffix(sout,"txt"); 
-			Out.Ln(); Out.String("sout"); Out.String(sout);
 			IF ( kno >= 4 ) THEN Args.GetArg(3,output); END; 
 			Strings.Upper(output,outputcont);
-			Out.Ln(); Out.String(outputcont);
 			SetOutput;       b.voutput := (2 IN outputset);
-				IF ( kno = 5 ) THEN Args.GetArg(4,output); Strings.StrToInt(output,uptomeasure);
-				Out.Ln(); Out.String(" number of bars to be processsed : "); Out.Int(uptomeasure,5);
-Out.Ln(); END; 
+				IF ( kno = 5 ) THEN Args.GetArg(4,output); Strings.StrToInt(output,uptomeasure); END;
 		Out.String( "Linux Binary XML2PMX Copyright 2015/2021 Dieter Gloetzel" );  Out.Ln();	
 			InOut(in, out);
 		ELSE
@@ -441,7 +432,7 @@ PROCEDURE InOut( infilename, outfilename: ARRAY OF CHAR );
 		outfilenameprep: ARRAY 64 OF CHAR;  
 		fprep: Files.File;  rprep: Files.Rider;  res : INTEGER;
 	BEGIN 
-		Out.Ln();  Out.String( "This is XML2PMX Version 16. dyn. alloc." );  fi := Files.Old( infilename );  
+		Out.String( "This is XML2PMX Version 16. dyn. alloc." );  fi := Files.Old( infilename );  
 	IF (fi # NIL ) THEN  	(* 1*)
 				Files.Set( ri, fi, 0 );  
 			(***************************************)
@@ -453,19 +444,15 @@ PROCEDURE InOut( infilename, outfilename: ARRAY OF CHAR );
 			IF (5 IN outputset) THEN DeleteTS("<slur>"); END;
 			IF (6 IN outputset) THEN DeleteTS("<tied>"); END;
 						
-			Out.Ln();  Out.String( "maxpart" );  Out.Int( maxpart, 5 );  
-			Out.Ln();  Out.String( "maxmeasure" );  Out.Int( maxmeasure, 5 );  
-			Out.Ln();  (* part := 1; *)  Out.String( " maximum directionnumber : " );  Out.Int( maxdir, 5 ); 
-				
 			(* 2. create temporary result storage for PMX-data *)
 			COPY( outfilename, outfilenameprep );  Strings.Append( outfilenameprep, "prep" );  
 			fprep := Files.New( outfilenameprep );  Files.Set( rprep, fprep, 0 );  
-			 Out.Ln(); Out.String(" Intermediate output file: "); Out.String(outfilenameprep); Out.String(" created. ");
+			 Out.Ln(); Out.String("Intermediate output file "); Out.String(outfilenameprep); Out.String(" created. ");
 			 
 				(* 3. map part/staff to a linear index. *) AllStaves( staves );  
-				Out.Ln(); Out.String("3:Allstaves done!");
+				Out.Ln(); Out.String("3: Allstaves done!");
 				(* 4. Extract control data  *) ControlProp;  
-				Out.Ln(); Out.String("4:ControlProp done!");
+				Out.Ln(); Out.String("4: ControlProp done!");
 				(* 5. Enrich Data *) Enrich( b.q ); 
 					Out.Ln(); Out.String("5: Enrich done!");				
 		(*		  n := b.q.first;  
@@ -484,8 +471,10 @@ PROCEDURE InOut( infilename, outfilename: ARRAY OF CHAR );
 				END;  
 			END;
 				ps := 0;  
-				Out.Ln();
-				Out.String( "*************** voices per measure and  instrument (part/staff) " ); Out.Ln();
+                                IF 2 IN outputset THEN
+				  Out.Ln();
+				  Out.String( "*************** voices per measure and  instrument (part/staff) " ); Out.Ln();
+                                END;
 				WHILE ps < nostaves DO;
 					  measure := 1;  
 					WHILE measure <= maxmeasure DO 
@@ -507,15 +496,14 @@ PROCEDURE InOut( infilename, outfilename: ARRAY OF CHAR );
 					Out.Ln();  Out.String( "part, label : " );  Out.Int( i, 5 );  Out.String( partlabel[i] );  INC( i );  
 				END;  *)
 				(* 7. identify potential pickup *)  Pickup( b.q, attributes[1].pickup );   
-				Out.Ln(); Out.String("7. Pickup"); Out.Int(attributes[1].pickup,5); (* attributes[1].pickup := 0; *)
 					Out.Ln(); Out.String("7: Pickup done!");
 					
 
 
 				(* 8. Generate Control data for PMX (i.e everything before the notes and store in"outfilename"*)
 				
-				ControlData( rprep );  Out.Ln();  Out.String( " nach ControlData" );  
-					Out.Ln(); Out.String("8:ControlData done!");
+				ControlData( rprep );
+					Out.Ln(); Out.String("8: ControlData done!");
 			
 				
 
@@ -530,7 +518,7 @@ PROCEDURE InOut( infilename, outfilename: ARRAY OF CHAR );
 										
 			(*	 IF 1 = 0 THEN *)
 				(* 10. Store everything in arrays measurewise *)
-				EnumerateTags;  Out.Ln();  Out.String( " 10:  EnumerateTags done!" );  
+				EnumerateTags;  Out.Ln();  Out.String( "10: EnumerateTags done!" );  
 			
 				 IF 9 IN outputset THEN (* Option "p" *)
 				   n := b.q.first;  WHILE (n.next # NIL) & (n.measure < uptomeasure) DO b.OutTag(n,TRUE);
@@ -539,15 +527,14 @@ PROCEDURE InOut( infilename, outfilename: ARRAY OF CHAR );
 
 				(* listmeter;*)
 				(* 11.. Generate PMX and store in outfilename *)
-				Out.Ln();  Out.String( "list all direction-Types" ); 
 				(* 14.11.2020: Do not link directions to grace notes *)
 				(* IF (voice = 0) & (notes[ps,voice,measure,note].grace = 0 ) THEN *) DistributeDirections;  (* END; *)
 				WritePMX( rprep );  Out.Ln(); Out.String( "11: nach WritePMX" );  
 				(* 12. Remove multiple Blanks from result file and break lines after 100 Chars *)
 				Files.Register( fprep );  fo := Files.New( outfilename );  Copywo( fprep, fo, unix );  Files.Close( fi );  
 				Files.Close(fprep);				Files.Delete( outfilenameprep, res );  
-				 IF ( res = 0 ) THEN Out.Ln(); Out.String(" intermediate data deleted"); END;
-				Files.Register( fo );  Files.Close( fo );   Out.Ln();  Out.String(out); Out.String( "  registered" );   	 
+				 IF ( res = 0 ) THEN Out.Ln(); Out.String("Intermediate data deleted"); END;
+				Files.Register( fo );  Files.Close( fo );   Out.Ln();  Out.String(out); Out.String( " registered" );   	 
 				
 	(*	  END; *)
 		  
@@ -1158,7 +1145,6 @@ END;
 		IF (attributes[1].pickup > 0) THEN minmeasure := 1
 		ELSE minmeasure := 0
 		END;   (* do not extend 1st measure in case of pickup. *)
-		 Out.Ln(); Out.String("vor WritePMX"); (* Out.Ln(); ListMeasures;  *)
 		IF ( uptomeasure > 0 ) & ( uptomeasure <= maxmeasure ) THEN maxmeasure := uptomeasure; END;
 		WHILE measure <= maxmeasure DO 
 		(*	Out.Ln(); Out.String("measure ="); Out.Int(measure,5); *)
@@ -1248,8 +1234,7 @@ END;
 									measures[measure].duration[part] := attributes[part].duration ; 
 							IF (ps = nostaves - 1) & (voice = voicefrom) THEN 
 								Files.Write( W, CR );  Files.Write( W, NL );  WriteString( W, measures[measure].meterchange );  
-								Out.Ln();  Out.String( " measure, meterchange : " );  Out.Int( measure, 5 );  
-								Out.String( measures[measure].meterchange );  Files.Write( W, CR );  Files.Write( W, NL );  
+								Files.Write( W, CR );  Files.Write( W, NL );  
 							END 
 						END;  
 					END;  
@@ -1995,9 +1980,7 @@ END Findnextgrace;
 				
 				IF (n.tagname = cleftag) THEN 
 					ReadClef( n, sign, line, staff );  attributes[part].clefsign[staff] := sign;  
-					attributes[part].clefline[staff] := line;  Out.Ln();  Out.String( "attProp------" );  Out.Int( part, 5 );  
-					Out.Int( staff, 5 );  Out.Char( sign );  Out.Char( "|" );  Out.Int( line, 5 );  
-				END;  
+					attributes[part].clefline[staff] := line; END;  
 				
 				n := n.next;  
 			
@@ -2021,7 +2004,7 @@ END Findnextgrace;
 	(* n.voice12 has the value "1" for the upper voice and  "2" for the lower voice in one staff. *)
 	VAR n: b.Tag;  lastnote: LONGINT;  
 	BEGIN 
-		n := q.first;  Out.Ln();  Out.String( "Enrich2" );  Out.Ln();  lastnote := 0;  
+		n := q.first; lastnote := 0;  
 		WHILE n.next # NIL DO 
 			IF (n.tagname = measuretag) THEN lastnote := 0;  END;  
 			IF (n.tagname = notetag) THEN 
@@ -2045,7 +2028,6 @@ END Findnextgrace;
 		
 		b.loeschint( voicecount );  
 		n := q.first;   (* Out.Ln();  Out.String( "part, staff, measure, voice, note, minvoice " ); Out.Ln();  *)
-		Out.Ln(); Out.String("Enrich"); Out.Ln();
 		WHILE n.next # NIL DO 
 			
 			IF (n.tagname = notetag) THEN 
@@ -2154,8 +2136,6 @@ END Findnextgrace;
 	VAR n: b.Tag;   voice01: LONGINT;  
 	BEGIN 
 		n := b.q.first; voice01 := 0;
-		Out.Ln();  Out.String( "EnumerateTags : " );  
-		Out.String( "part, staff, voice, measure, note, tag, names/values, between" );  Out.Ln();
 		WHILE n.next # NIL DO  (* 1 *)
 			part := n.part;  measure := n.measure;  note := n.note;   (* voice := n.voice; staff := n.staff; *)
 			
@@ -2451,7 +2431,6 @@ WHILE n.tagname # "</attributes>" DO  (* 2*)
 		durationsv: ARRAY 25 OF ARRAY 10 OF LONGINT;  
 	BEGIN 
 		n := q.first;   isnote := FALSE;   chord := 0X;
-                Out.Ln();  Out.String( " PROCEDURE Pickup : " );  
 		WHILE (n.next # NIL ) & (n.tagname # measuretag) DO n := n.next;  END;   (* first measure of first part found *)
 	(*	 b.OutTag( n, TRUE );  *)   COPY( n.endtag, endtag );  duration := 0;  
 		WHILE (n.next # NIL ) & (n.tagname # endtag) DO  (* Loop over all elements of 1st measure / 1st instrument /1st staff *)
@@ -2470,7 +2449,6 @@ WHILE n.tagname # "</attributes>" DO  (* 2*)
 			END;  
 			n := n.next;  
 		END;  
-		Out.Ln();  Out.String( "Duration of 1st measure : " );  duration := durationsv[staff, voice];  Out.Int( duration, 5 );  
 		
 		IF (duration = attributes[1].duration) THEN duration := 0;  
 		END;  
@@ -2544,7 +2522,6 @@ WHILE n.tagname # "</attributes>" DO  (* 2*)
 			IF ( part > 1 ) THEN pmxcontrol.equalkeys := pmxcontrol.equalkeys & ( attributes[part].fifth = attributes[part-1].fifth ) END;
 
 			INC( part );  		END;  
-			IF pmxcontrol.equalkeys THEN Out.Ln(); Out.String(" equalkeys  = TRUE "); Out.Int(attributes[1].fifth,5); END;
 			IF ~ pmxcontrol.equalkeys THEN	b.testmakekey(maxpart,1,keytotal); END; (* different keys in different parts  *)
 	END ControlProp;  
 
@@ -2650,7 +2627,7 @@ WHILE n.tagname # "</attributes>" DO  (* 2*)
 
 		WriteString( W, pmxcontrol.xml );  Files.Write( W, CR );  Files.Write( W, NL );  Files.Write( W, "%" );  
 
-		Out.Ln();  WriteString( W, pmxcontrol.dtd );  Files.Write( W, CR );  Files.Write( W, NL );  Files.Write( W, "%" );  
+		WriteString( W, pmxcontrol.dtd );  Files.Write( W, CR );  Files.Write( W, NL );  Files.Write( W, "%" );  
 
 		WriteString( W, pmxcontrol.title );  Files.Write( W, CR );  Files.Write( W, NL );  Files.Write( W, "%" );  
 		
@@ -2664,10 +2641,10 @@ WHILE n.tagname # "</attributes>" DO  (* 2*)
 		IF (pmxcontrol.lyricist[0] # 0X) THEN 
 			WriteString( W, pmxcontrol.lyricist );  Files.Write( W, CR );  Files.Write( W, NL );  
 
-			Out.Ln();  Files.Write( W, "%" );  
+			Files.Write( W, "%" );  
 		END;  
 		
-		Out.String( pmxcontrol.info );  Out.Ln();  WriteString( W, pmxcontrol.info );  Files.Write( W, CR );  
+		WriteString( W, pmxcontrol.info );  Files.Write( W, CR );  
 		Files.Write( W, NL );  Files.Write( W, "%" );  
 		
 		IF (pmxcontrol.rights[0] # 0X) THEN 
@@ -2704,7 +2681,6 @@ WHILE n.tagname # "</attributes>" DO  (* 2*)
 		IF attributes[1].mtrdenp # 0 THEN WriteLInt( W, attributes[1].mtrdenp ) 
 		ELSE WriteLInt( W, attributes[1].beattype );  
 		END;   (* mtrdenp *)
-		Out.Ln(); Out.String("pickup : "); Out.Int(attributes[1].pickup,5);
 		IF (attributes[1].pickup > 0) THEN 
 			xmtrnum0 := attributes[1].pickup/attributes[1].divisions;  
 			IF attributes[1].beattype = 2 THEN xmtrnum0 := xmtrnum0/2;  
@@ -2716,7 +2692,7 @@ WHILE n.tagname # "</attributes>" DO  (* 2*)
 		ELSE xmtrnum0 := 0.;  
 		END;  
 		Strings.RealToStr( xmtrnum0, xmtrnum0s );  Files.Write( W, BLANK );  
-		WriteString( W, xmtrnum0s );   (*xmtrnum0 *) Out.Ln();  Out.String( "pickup-real : " );  Out.String( xmtrnum0s );  
+		WriteString( W, xmtrnum0s );   (*xmtrnum0 *)
 		WriteLInt( W, attributes[maxpart].fifth );   (* isig *) (* this is the concert key *)
 		Files.Write( W, CR );  Files.Write( W, NL );  Files.Write( W, "%" );  Files.Write( W, CR );  Files.Write( W, NL );  
 
@@ -2740,10 +2716,7 @@ WHILE n.tagname # "</attributes>" DO  (* 2*)
 			Out.Int( staff, 5 );  *)
 
 			b.clefPMX( attributes[part].clefsign[staff], SHORT( attributes[part].clefline[staff] ), clef, clefspec[i] );  
-			lastclef[i] := clef;  Files.Write( W, clef );  Out.Char( attributes[part].clefsign[staff] );  
-			Out.Int( attributes[part].clefline[staff], 5 );  Out.Char( clef );  Out.Char( "|" );  
-			IF clefspec[i] # 0X  THEN Out.Char( clefspec[i] ); END;  
-
+			lastclef[i] := clef;  Files.Write( W, clef );
 			DEC( i );  
 		END;  
 		
@@ -2924,9 +2897,8 @@ WHILE n.tagname # "</attributes>" DO  (* 2*)
 				END;  
 			END;  
 		END;  
-		Out.Ln();  part := 1;  
+		part := 1;  
 		WHILE part <= maxpart DO 
-			Out.Ln();  Out.String( "part : number of staves : " );  Out.Int( part, 5 );  Out.Int( staves[part], 5 );  
 			nostaves := nostaves + staves[part];   (* Aenderung 5.11.2015 *)
 			INC( part );  
 		END;  
