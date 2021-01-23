@@ -33,6 +33,9 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
+/* log2 of PAGESIZE */
+#undef LOG_PAGESIZE
+
 /* Define for 64-bit runtime with 32-bit pointers */
 #undef M64X32
 
@@ -62,6 +65,9 @@
 
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
+
+/* Notional page size for garbage collector */
+#undef PAGESIZE
 
 /* Define to use preloaded image */
 #undef PRELOAD

@@ -443,9 +443,6 @@ static hdrptr new_list(void) {
    we arrange that a page index occupies one page itself, and
    calculate the size of the root table to cover the address space. */
 
-#define PAGESIZE 4096
-#define LOG_PAGESIZE 12
-
 #define BOT_BITS (LOG_PAGESIZE - 2)
 #define BOT_SIZE (1 << BOT_BITS)
 #define TOP_BITS (8*BYTES_PER_WORD - BOT_BITS - LOG_PAGESIZE)

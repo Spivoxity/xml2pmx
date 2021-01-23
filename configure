@@ -4708,6 +4708,13 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
+
+$as_echo "#define PAGESIZE 4096" >>confdefs.h
+
+
+$as_echo "#define LOG_PAGESIZE 12" >>confdefs.h
+
+
 # M64X32 allows Keiko programs (with 4-byte pointers) to run on machines
 # with a 64-bit address space.
 # The cast to long int works around a bug in the HP C Compiler

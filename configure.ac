@@ -17,6 +17,9 @@ AC_C_UNUSED
 AC_C_USED
 AC_C_NORETURN
 
+AC_DEFINE(PAGESIZE, 4096, [Notional page size for garbage collector])
+AC_DEFINE(LOG_PAGESIZE, 12, [log2 of PAGESIZE])
+
 # M64X32 allows Keiko programs (with 4-byte pointers) to run on machines
 # with a 64-bit address space.
 AC_CHECK_SIZEOF([int *])
