@@ -1,6 +1,6 @@
 # configure.ac for XML2PMX
 
-AC_INIT(xml2pmx, 2020-06-22a, rdt@cs.queensu.ca)
+AC_INIT(xml2pmx, 2021-01-22a, rdt@cs.queensu.ca)
 AC_CONFIG_AUX_DIR(scripts)
 AM_INIT_AUTOMAKE([-Wall foreign])
 AC_CONFIG_SRCDIR(obx.h)
@@ -23,6 +23,10 @@ AC_CHECK_SIZEOF([int *])
 if test $ac_cv_sizeof_int_p = 8; then
   AC_DEFINE(M64X32, 1, [Define for 64-bit runtime with 32-bit pointers])
 fi
+
+# Indexed jumps allow the interpreter to run faster, but it works
+# without them.
+# AC_C_INDEXED_JUMPS
 
 # SEGMEM allows malloc to be used for all dynamic storage allocation
 AC_DEFINE(SEGMEM, 1, [Define to simulate segmented memory])

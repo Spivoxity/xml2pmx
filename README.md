@@ -10,13 +10,8 @@ Directory obsrc contains Oberon source code for the XML2PMX program
      Strings0.m -- Strings module ported from Wirth Oberon
      Testbed.m
 
-This root directory contains C source for a wrapper, invoked as xml2pmx.
-Edit the main program here to implement --help, etc.
-
-     wrapper.c
-
-Here also is the bytecode for the program, written as a small collection
-of array constants.
+This root directory contains the bytecode for the program, written as a
+small collection of array constants.
 
      image.c
 
