@@ -16,6 +16,7 @@ AC_C_INLINE
 AC_C_UNUSED
 AC_C_USED
 AC_C_NORETURN
+AC_UNISTD_H
 
 AC_DEFINE(PAGESIZE, 4096, [Notional page size for garbage collector])
 AC_DEFINE(LOG_PAGESIZE, 12, [log2 of PAGESIZE])

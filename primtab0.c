@@ -2,7 +2,9 @@
 
 #include "primtab.h"
 #include <stdio.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 
 type_V xmain_exit(type_I);
 
