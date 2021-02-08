@@ -116,3 +116,6 @@
 #ifndef __cplusplus
 #undef inline
 #endif
+
+/* Allow for the real main in wrapper.c */
+#undef main

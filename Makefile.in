@@ -108,7 +108,7 @@ PROGRAMS = $(bin_PROGRAMS)
 am_xml2pmx_OBJECTS = Args.$(OBJEXT) Builtin.$(OBJEXT) \
 	dynlink.$(OBJEXT) Files.$(OBJEXT) gc.$(OBJEXT) image.$(OBJEXT) \
 	interp.$(OBJEXT) primtab0.$(OBJEXT) support.$(OBJEXT) \
-	xmain.$(OBJEXT) loader.$(OBJEXT)
+	xmain.$(OBJEXT) loader.$(OBJEXT) wrapper.$(OBJEXT)
 xml2pmx_OBJECTS = $(am_xml2pmx_OBJECTS)
 xml2pmx_LDADD = $(LDADD)
 AM_V_P = $(am__v_P_@AM_V@)
@@ -130,7 +130,8 @@ am__depfiles_remade = ./$(DEPDIR)/Args.Po ./$(DEPDIR)/Builtin.Po \
 	./$(DEPDIR)/Files.Po ./$(DEPDIR)/dynlink.Po ./$(DEPDIR)/gc.Po \
 	./$(DEPDIR)/image.Po ./$(DEPDIR)/interp.Po \
 	./$(DEPDIR)/loader.Po ./$(DEPDIR)/primtab0.Po \
-	./$(DEPDIR)/support.Po ./$(DEPDIR)/xmain.Po
+	./$(DEPDIR)/support.Po ./$(DEPDIR)/wrapper.Po \
+	./$(DEPDIR)/xmain.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -295,7 +296,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 xml2pmx_SOURCES = Args.c Builtin.c dynlink.c Files.c gc.c \
-	image.c interp.c primtab0.c support.c xmain.c loader.c \
+	image.c interp.c primtab0.c support.c xmain.c loader.c wrapper.c \
 	exec.h keiko.h obcommon.h obx.h
 
 
@@ -427,6 +428,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/loader.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/primtab0.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/support.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wrapper.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xmain.Po@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
@@ -727,6 +729,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/loader.Po
 	-rm -f ./$(DEPDIR)/primtab0.Po
 	-rm -f ./$(DEPDIR)/support.Po
+	-rm -f ./$(DEPDIR)/wrapper.Po
 	-rm -f ./$(DEPDIR)/xmain.Po
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
@@ -785,6 +788,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/loader.Po
 	-rm -f ./$(DEPDIR)/primtab0.Po
 	-rm -f ./$(DEPDIR)/support.Po
+	-rm -f ./$(DEPDIR)/wrapper.Po
 	-rm -f ./$(DEPDIR)/xmain.Po
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic

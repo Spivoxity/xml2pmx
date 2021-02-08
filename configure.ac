@@ -1,6 +1,6 @@
 # configure.ac for XML2PMX
 
-AC_INIT(xml2pmx, 2021-01-22a, rdt@cs.queensu.ca)
+AC_INIT(xml2pmx, 2021-02-08a, rdt@cs.queensu.ca)
 AC_CONFIG_AUX_DIR(scripts)
 AM_INIT_AUTOMAKE([-Wall foreign])
 AC_CONFIG_SRCDIR(obx.h)
@@ -39,5 +39,7 @@ AC_DEFINE(PRELOAD, 1, [Define to use preloaded image])
 AC_DEFINE(MAGIC, "OBCX", [Magic number for executables])
 AC_DEFINE(SIG, 0x00030290, [OBC version signature])
 AC_DEFINE(DEBUG, 1, [Debug])
+
+AC_DEFINE(main, xmain, [Allow for the real main in wrapper.c])
 
 AC_OUTPUT
